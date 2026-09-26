@@ -11,17 +11,17 @@
 :root{
   --paper:#f4f5f2; --card:#ffffff; --ink:#1b2320; --ink2:#46524d; --muted:#6d7a74; --rule:#dde1dc; --rule2:#eceee9;
   --accent:#1f5f7a; --accent-soft:#e3eef3; --block:#7f9ea9; --block-hover:#1f5f7a;
-  --call:#b86e12; --call-soft:#fbefdc; --good:#2d7a4b; --good-soft:#e2f1e7; --bad:#b0412a; --bad-soft:#f9e6e1;
+  --call:#b86e12; --call-soft:#fbefdc; --good:#2d7a4b; --good-soft:#e2f1e7; --bad:#b0412a; --bad-soft:#f9e6e1; --flow:#8aa3b5; --flow-soft:#e7eef4;
   --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --cond:"IBM Plex Sans Condensed","Arial Narrow",var(--sans); --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;
   --paper:#141917; --card:#1c2320; --ink:#e7ece9; --ink2:#bac5c0; --muted:#8c9a94; --rule:#2f3834; --rule2:#252d29;
   --accent:#7cc0dc; --accent-soft:#1d3440; --block:#5d7c87; --block-hover:#9fd3e8;
-  --call:#f0a948; --call-soft:#3a2c17; --good:#6cc48e; --good-soft:#1b3326; --bad:#ec8a74; --bad-soft:#3d231d;}}
+  --call:#f0a948; --call-soft:#3a2c17; --good:#6cc48e; --good-soft:#1b3326; --bad:#ec8a74; --bad-soft:#3d231d; --flow:#6f8ea6; --flow-soft:#1f2c36;}}
 :root[data-theme="dark"]{color-scheme:dark;
   --paper:#141917; --card:#1c2320; --ink:#e7ece9; --ink2:#bac5c0; --muted:#8c9a94; --rule:#2f3834; --rule2:#252d29;
   --accent:#7cc0dc; --accent-soft:#1d3440; --block:#5d7c87; --block-hover:#9fd3e8;
-  --call:#f0a948; --call-soft:#3a2c17; --good:#6cc48e; --good-soft:#1b3326; --bad:#ec8a74; --bad-soft:#3d231d;}
+  --call:#f0a948; --call-soft:#3a2c17; --good:#6cc48e; --good-soft:#1b3326; --bad:#ec8a74; --bad-soft:#3d231d; --flow:#6f8ea6; --flow-soft:#1f2c36;}
 *{box-sizing:border-box}
 body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;padding-inline:16px;padding-block:0 48px}
 .wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
@@ -60,7 +60,13 @@ select{background:var(--card);border:1px solid var(--rule);border-radius:4px;pad
 #hist text.keylbl{fill:var(--good);font-weight:600}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--ink2)}
 .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
-.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--paper);padding:6px 9px;border-radius:4px;font-size:12px;z-index:20;white-space:nowrap}
+.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--paper);padding:7px 10px;border-radius:4px;font-size:12px;line-height:1.45;z-index:20;max-width:340px;white-space:normal}
+td.diff[data-k]{cursor:help}
+td.diff[data-k]:hover,td.diff[data-k]:focus{outline:1px solid var(--bad);outline-offset:-1px}
+.why{background:var(--bad-soft);border-radius:5px;padding:12px 14px;max-width:80ch}
+.why h3{margin:0 0 6px;font-family:var(--cond);font-size:15px}
+.why ul{margin:0 0 6px;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.why p{margin:0}
 .tip .m{font-family:var(--mono)}
 .binlist{font-size:13px;color:var(--ink2);min-height:22px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--rule);background:var(--paper);border-radius:999px;padding:2px 10px;font-size:13px;cursor:pointer;color:var(--ink)}
@@ -82,6 +88,9 @@ tr.grp td{font-family:var(--cond);font-weight:600;text-transform:uppercase;lette
 tr.total td{font-weight:600}
 tr.fund td{border-top:2px solid var(--ink);font-weight:600}
 td.diff{background:var(--bad-soft)}
+td.flow{background:var(--flow-soft)}
+td.flow .k{display:block;font-size:11px;color:var(--muted)}
+.fl{color:var(--flow)}
 td.diff .k{display:block;font-size:11px;color:var(--good)}
 td.max{box-shadow:inset 0 -2px 0 var(--accent)}
 td.flag{width:26px;text-align:center;font-size:12px}
@@ -163,6 +172,8 @@ textarea{width:100%;min-height:110px;background:var(--paper);border:1px solid va
     </div>
     <div class="viewer-top" id="vTop"></div>
     <div class="tablewrap"><table id="model"></table></div>
+    <div class="legend" id="shadeKey" hidden><span><i class="sw" style="background:var(--bad-soft);outline:1px solid var(--bad)"></i>Differs from the key (hover for the likely reason)</span><span><i class="sw" style="background:var(--flow-soft);outline:1px solid var(--flow)"></i>Formula is right; differs only because a number above it differs</span></div>
+    <div class="why" id="why" hidden></div>
   </section>
 
   <section class="panel" id="instr" hidden aria-labelledby="iTitle">
@@ -274,6 +285,69 @@ function renderHist(){
   document.getElementById("legend").innerHTML = lg;
 }
 
+const WHY = {
+ "Interest charged in 2017":[[13],"Interest is 5% of last year's ending loan balance. The loan is drawn during 2017, so 2017 interest is zero; the 45 a year (5% × 900) starts in 2018.",[0]],
+ "No interest expense":[[13],"The 900 loan costs 5% a year (p. 4). Interest is 5% of the prior year's loan balance, so 45 a year from 2018."],
+ "Interest sign flipped":[[13],"Interest expense was entered as a negative number, so it raises net income instead of reducing it."],
+ "Bank loan left out":[[32,13],"The key assumes Mighty Squirrel draws the full 900 MassDevelopment loan in 2017 (p. 4). Leaving it out moves that 900 into the funding need and removes the interest."],
+ "Loan starts in 2018":[[32],"The key draws the 900 loan in 2017. Starting it in 2018 raises the 2017 funding need and shifts interest by a year."],
+ "Loan sized to need, not a flat 900":[[32,13],"The key draws the full 900 in 2017 and holds it flat. Sizing the loan to each year's gap changes the loan balance and the interest that follows from it."],
+ "Landlord 375 not deducted":[[25],"The landlord pays 375 of the 2018 build-out (Exhibit 6), so 375 comes off PP&E. Without it, PP&E and the funding need are 375 too high from 2018 on.",[1,2,3,4]],
+ "PP&E = capex only, not accumulated":[[25],"PP&E is a running balance: last year's PP&E plus this year's capex minus depreciation. Entering only the year's capex drops the accumulated investment."],
+ "PP&E roll-forward differs":[[25],"Check the roll-forward: start from 87, add each year's capex, subtract depreciation, and deduct the landlord's 375 in 2018 only."],
+ "Cash used as the plug (goes negative)":[[21],"Cash is operating cash at 1.5% of sales. Letting cash absorb the gap hides the funding need inside a negative cash balance."],
+ "Kept cash above 1.5% of sales":[[21],"The key holds only operating cash, 1.5% of sales (Exhibit 6). The 2,178 of excess cash on hand gets used up, and that is part of what the funding need measures."],
+ "Receivables on total revenue":[[22],"Taproom customers pay immediately, so receivables are 30 days of distribution revenue only: 30/365 × distribution revenue."],
+ "Receivables base differs":[[22],"Receivables are 30 days of distribution revenue: 30/365 × distribution revenue."],
+ "Security deposit left out":[[26],"Mighty Squirrel posts a 350 security deposit in 2017 (p. 3). It is an asset that stays on the balance sheet every year."],
+ "Accrued expenses base differs":[[30],"Accrued expenses are 6% of operating expenses plus SG&A (Exhibit 6)."],
+ "Payables base differs":[[29],"Payables are 30 days of cost of goods sold: 30/365 × COGS."],
+ "Paid-in capital changed":[[33],"Paid-in capital stays at 4,731. The question is how much new equity is needed, so the forecast adds none; the gap shows up as the funding need instead."],
+ "COGS differs":[[5],"COGS is 60% of distribution revenue plus 10% of taproom revenue (Exhibit 6)."],
+ "Operating expenses differ":[[7],"Operating expenses are brewery plus taproom operating expenses from Exhibit 6."],
+ "Depreciation differs":[[11],"Depreciation comes straight from Exhibit 6."],
+ "EBITDA formula differs":[[10],"EBITDA is gross profit minus operating expenses, rent and SG&A."],
+ "Units mixed ($ vs $000s)":[[4,5,13,21,22,25,26,29,30,32,33],"Some entries are in dollars and others in thousands. The model is in $000s throughout."],
+};
+const HOW = {4:"Distribution plus taproom revenue (Exhibit 6).",5:"60% of distribution revenue plus 10% of taproom revenue.",7:"Brewery plus taproom operating expenses (Exhibit 6).",8:"Rent from Exhibit 6.",9:"SG&A from Exhibit 6.",11:"Depreciation from Exhibit 6.",13:"5% of the prior year's ending loan balance.",14:"Zero: accumulated losses shield income through 2021.",21:"Operating cash at 1.5% of sales.",22:"30/365 × distribution revenue.",23:"10% of COGS.",25:"Prior PP&E + capex − depreciation, less the landlord's 375 in 2018.",26:"The 350 deposit, held every year.",29:"30/365 × COGS.",30:"6% of operating expenses plus SG&A.",32:"The full 900 loan, drawn in 2017.",33:"Held at 4,731; no new equity.",34:"Prior retained earnings plus net income."};
+const DERIVED = new Set([6,10,12,15,24,27,31,35,36,39,34]);
+function flowOK(s,k,i){
+  const g=(r,j)=> j<0 ? null : ((s.rows[r]||[])[j] ?? 0);
+  let exp;
+  switch(k){
+    case 6: exp=g(4,i)-g(5,i); break;
+    case 10: exp=g(6,i)-g(7,i)-g(8,i)-g(9,i); break;
+    case 12: exp=g(10,i)-g(11,i); break;
+    case 15: exp=g(12,i)-g(13,i)-g(14,i); break;
+    case 13: exp= i===0 ? 0 : 0.05*g(32,i-1); break;
+    case 21: exp=0.015*g(4,i); break;
+    case 23: exp=0.1*g(5,i); break;
+    case 24: exp=g(21,i)+g(22,i)+g(23,i); break;
+    case 27: exp=g(24,i)+g(25,i)+g(26,i); break;
+    case 29: exp=30/365*g(5,i); break;
+    case 30: exp=0.06*(g(7,i)+g(9,i)); break;
+    case 31: exp=g(29,i)+g(30,i); break;
+    case 34: exp=(i===0?-2465:g(34,i-1))+g(15,i); break;
+    case 35: exp=g(33,i)+g(34,i); break;
+    case 36: exp=g(31,i)+g(32,i)+g(35,i); break;
+    case 39: exp=g(27,i)-g(36,i); break;
+    default: return false;
+  }
+  const v=(s.rows[k]||[])[i]; if (v==null) return false;
+  return Math.abs(v-exp) <= Math.max(1, 0.01*Math.abs(exp));
+}
+function whyCell(s,k,y){
+  const own = s.tags.filter(t=>WHY[t] && WHY[t][0].includes(k) && (!WHY[t][2] || WHY[t][2].includes(y)));
+  if (own.length) return own.map(t=>WHY[t][1]);
+  if (DERIVED.has(k)){
+    const roots = LAB.filter(([r])=>!DERIVED.has(r) && r!==k && (s.rows[r]||[]).some((x,i)=>!close(x,KEY[r][i]))).map(([,l])=>/^[A-Z]{2}/.test(l)?l:l[0].toLowerCase()+l.slice(1));
+    if (k===34 && !roots.length) return ["Retained earnings add up net income, so they carry forward any difference in net income."];
+    return [roots.length ? "This is a total or running balance. It differs because of " + roots.slice(0,5).join(", ") + (roots.length>5?" and more":"") + "." : "This is a total; check how it is summed."];
+  }
+  if (k===13 && (s.rows[32]||[]).some((x,i)=>!close(x,KEY[32][i]))) return ["Interest follows the loan balance, which differs from the key."];
+  return [HOW[k] ? "The key computes this as: " + HOW[k] : "Check this row against Exhibit 6."];
+}
+
 /* ---------- viewer ---------- */
 const GROUPS = {4:"Income statement",21:"Balance sheet — assets",29:"Balance sheet — liabilities & equity",39:null};
 const TOTALS = new Set([6,10,12,15,24,27,31,35,36]);
@@ -297,13 +371,31 @@ function renderViewer(){
     const v = s.rows[k]||[null,null,null,null,null], kv = KEY[k];
     const rowOk = v.every((x,i)=>close(x,kv[i]));
     h += `<tr class="${k===39?"fund":TOTALS.has(k)?"total":""}"><td>${label}</td>`;
-    v.forEach((x,i)=>{ const bad = cmp && !close(x,kv[i]); const cls=["num"]; if(bad) cls.push("diff"); if(k===39 && i===fmax) cls.push("max");
+    let realBad=false;
+    v.forEach((x,i)=>{ const off = cmp && !close(x,kv[i]); const flow = off && flowOK(s,k,i); const bad = off && !flow; if(bad) realBad=true;
+      const cls=["num"]; if(bad) cls.push("diff"); if(flow) cls.push("flow"); if(k===39 && i===fmax) cls.push("max");
       const dec = (k===21||k===22||k===23||k===29||k===30) ? 1 : 0;
-      h += `<td class="${cls.join(" ")}">${fmt(x,dec)}${bad?`<span class="k">key ${fmt(kv[i],dec)}</span>`:""}</td>`; });
-    if (cmp) h += `<td class="flag">${rowOk?'<span class="ok" aria-label="matches">✓</span>':'<span class="no" aria-label="differs">✕</span>'}</td>`;
+      h += `<td class="${cls.join(" ")}"${bad?` tabindex="0" data-k="${k}" data-y="${i}"`:""}>${fmt(x,dec)}${off?`<span class="k">key ${fmt(kv[i],dec)}</span>`:""}</td>`; });
+    if (cmp) h += `<td class="flag">${rowOk?'<span class="ok" aria-label="matches">✓</span>':realBad?'<span class="no" aria-label="differs">✕</span>':'<span class="fl" aria-label="differs only through numbers above" title="Formula right; inputs above differ">↳</span>'}</td>`;
     h += `</tr>`;
   });
   document.getElementById("model").innerHTML = h + "</tbody>";
+  document.getElementById("shadeKey").hidden = !cmp;
+  const whyEl = document.getElementById("why");
+  if (cmp && s.ans!=null && s.tags.length){
+    whyEl.hidden=false;
+    whyEl.innerHTML = `<h3>Why your numbers differ from the key</h3><ul>${s.tags.filter(t=>WHY[t]).map(t=>`<li><b>${esc(t)}.</b> ${esc(WHY[t][1])}</li>`).join("")}</ul><p class="src">Inferred from which rows differ and how. Hover or tap a red cell for the reason behind that number. Blue cells have the right formula and differ only because a number above them differs.</p>`;
+  } else if (cmp && s.ans!=null && isRight(s)) { whyEl.hidden=false; whyEl.innerHTML = `<h3>Matches the key</h3><p class="src">Any shaded cells are offsetting differences that don't change the peak funding need.</p>`; }
+  else whyEl.hidden=true;
+  document.querySelectorAll("#model td.diff").forEach(td=>{
+    const k=+td.dataset.k, y=YRS[+td.dataset.y], label=LAB.find(([r])=>r===k)[1];
+    const html = ()=>`<b>${esc(label)}, ${y}</b><br>${whyCell(s,k,+td.dataset.y).map(esc).join("<br>")}`;
+    td.addEventListener("mousemove", e=>showTip(e, html()));
+    td.addEventListener("mouseleave", hideTip);
+    td.addEventListener("click", e=>showTip(e, html()));
+    td.addEventListener("focus", ()=>{ const r=td.getBoundingClientRect(); showTip({clientX:r.left, clientY:r.top}, html()); });
+    td.addEventListener("blur", hideTip);
+  });
 }
 
 /* ---------- instructor ---------- */
