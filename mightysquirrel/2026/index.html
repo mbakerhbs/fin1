@@ -124,6 +124,20 @@ th.sortable{cursor:pointer} th.sortable:hover{color:var(--ink)}
 textarea{width:100%;min-height:110px;background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:8px;font-family:var(--mono);font-size:13px}
 .note{font-size:12px;color:var(--muted);max-width:70ch}
 .warn{color:var(--bad);font-size:12px}
+
+/* classroom size */
+:root.big body{font-size:18px}
+:root.big h1{font-size:44px} :root.big h2{font-size:26px}
+:root.big .src,:root.big .lbl,:root.big .legend,:root.big .binlist{font-size:16px}
+:root.big .stat b{font-size:28px} :root.big .stat span{font-size:14px}
+:root.big #hist text{font-size:18px}
+:root.big .tip{font-size:20px;line-height:1.4;max-width:520px;padding:12px 16px}
+:root.big td.num{font-size:17px} :root.big td.diff .k,:root.big td.flow .k{font-size:14px}
+:root.big thead th{font-size:15px} :root.big tr.grp td{font-size:14px}
+:root.big .why{font-size:18px;max-width:90ch} :root.big .why h3{font-size:20px}
+:root.big button,:root.big select{font-size:16px}
+:root.big .chip{font-size:16px}
+:root.big .ansbox .big{font-size:36px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media (max-width:560px){h1{font-size:27px}.ansbox .big{font-size:23px}}
 </style>
@@ -153,6 +167,7 @@ textarea{width:100%;min-height:110px;background:var(--paper);border:1px solid va
           <button data-w="100">100</button><button data-w="250" aria-pressed="true">250</button><button data-w="500">500</button>
         </div>
         <button class="toggle" id="keyBtn" aria-pressed="false">Show answer key</button>
+        <button class="toggle" id="bigBtn" aria-pressed="false" title="Larger text for the classroom screen">Classroom size</button>
       </div>
     </div>
     <div class="chartbox"><svg id="hist" role="img" aria-label="Histogram of student funding-need answers"></svg></div>
@@ -252,10 +267,10 @@ function renderHist(){
   S.filter(s=>s.ans!=null).forEach(s=>{ let i = s.ans<LO ? -1 : Math.min(nb-1, Math.floor((s.ans-LO)/bw)); if(!bins.has(i)) bins.set(i,[]); bins.get(i).push(s); });
   bins.forEach(v=>v.sort((a,b)=>a.ans-b.ans));
   const maxN = Math.max(...[...bins.values()].map(v=>v.length));
-  const W = 1100, padL = 34, padR = 12, padT = 26, padB = 34, gap = 6;
+  const BIG=document.documentElement.classList.contains("big"); const W = 1100, padL = BIG?58:34, padR = 12, padT = BIG?36:26, padB = BIG?50:34, gap = 6;
   const slots = nb + 1 + 0.6; // below-0 bin + spacer
   const cw = (W-padL-padR)/slots;
-  const bh = Math.max(8, Math.min(18, 300/maxN)); const H = padT + maxN*bh + padB;
+  const bh = Math.max(BIG?10:8, Math.min(BIG?24:18, (BIG?380:300)/maxN)); const H = padT + maxN*bh + padB;
   const svg = document.getElementById("hist"); svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
   const xOf = i => i===-1 ? padL : padL + (1.6 + i)*cw;
   const base = H - padB;
@@ -264,7 +279,7 @@ function renderHist(){
   for (let n=step; n<=maxN; n+=step){ const y=base-n*bh; out += `<line class="grid" x1="${padL}" x2="${W-padR}" y1="${y}" y2="${y}"/><text x="${padL-6}" y="${y+4}" text-anchor="end">${n}</text>`; }
   out += `<line class="axis" x1="${padL}" x2="${W-padR}" y1="${base}" y2="${base}"/>`;
   const labEvery = bw===100 ? 10 : bw===250 ? 4 : 2;
-  for (let i=0;i<=nb;i++){ if (i%labEvery===0){ const x=padL+(1.6+i)*cw; out += `<line class="axis" x1="${x}" x2="${x}" y1="${base}" y2="${base+4}"/><text x="${x}" y="${base+17}" text-anchor="middle">${fmt(LO+i*bw)}</text>`; } }
+  for (let i=0;i<=nb;i++){ if (i%labEvery===0){ const x=padL+(1.6+i)*cw; out += `<line class="axis" x1="${x}" x2="${x}" y1="${base}" y2="${base+4}"/><text x="${x}" y="${base+(BIG?30:17)}" text-anchor="middle">${fmt(LO+i*bw)}</text>`; } }
   out += `<text x="${padL+cw/2}" y="${base+17}" text-anchor="middle">&lt; 0</text>`;
   bins.forEach((arr,i)=>{ const x = xOf(i); arr.forEach((s,j)=>{ const y = base - (j+1)*bh;
       const cls = ["blk"]; if (state.key && isRight(s)) cls.push("right"); else if (CALL.has(s.id)) cls.push("call"); if (S[state.cur].id===s.id) cls.push("sel");
@@ -480,6 +495,8 @@ function toggleInstr(){ const p=document.getElementById("instr"); p.hidden=!p.hi
 /* ---------- wiring ---------- */
 document.querySelectorAll("#bins button").forEach(b=>b.addEventListener("click",()=>{ state.bw=+b.dataset.w; document.querySelectorAll("#bins button").forEach(x=>x.setAttribute("aria-pressed", x===b)); renderHist(); }));
 document.getElementById("keyBtn").addEventListener("click",e=>{ state.key=!state.key; e.target.setAttribute("aria-pressed",state.key); e.target.textContent = state.key?"Hide answer key":"Show answer key"; renderStats(); renderHist(); });
+function setBig(on){ document.documentElement.classList.toggle("big",on); const b=document.getElementById("bigBtn"); b.setAttribute("aria-pressed",on); LSset("big_text",on?"1":"0"); renderHist(); }
+document.getElementById("bigBtn").addEventListener("click",()=>setBig(!document.documentElement.classList.contains("big")));
 document.getElementById("cmpBtn").addEventListener("click",e=>{ state.cmp=!state.cmp; e.target.setAttribute("aria-pressed",state.cmp); renderViewer(); });
 document.getElementById("pick").addEventListener("change",e=>select(S.findIndex(s=>s.id===e.target.value)));
 document.getElementById("prev").addEventListener("click",()=>select(state.cur-1));
@@ -493,6 +510,7 @@ document.addEventListener("keydown",e=>{ if (e.target.matches("input,textarea,se
   if (e.key==="ArrowLeft" && !e.target.closest("#hist")) select(state.cur-1);
 });
 
+if (LS("big_text")==="1") { document.documentElement.classList.add("big"); document.getElementById("bigBtn").setAttribute("aria-pressed","true"); }
 parseCall(); renderStats(); renderPick(); renderHist(); renderViewer(); renderList(); renderCold(); renderDiag(); renderEffort();
 </script>
 
