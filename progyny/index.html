@@ -1,1 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Perpetuity Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,500;0,8..60,600;1,8..60,500&display=swap">
+<style>
+/* Layout: control rail on the left (formulas live with the inputs), two stacked charts on the right; one column on phones. */
+:root {
+  --bg: #F3F5F4;
+  --surface: #FFFFFF;
+  --ink: #17212A;
+  --muted: #5A6670;
+  --rule: #D9E0DD;
+  --grid: #E7ECEA;
+  --level: #2D5C8C;
+  --grow: #B5751A;
+  --warn: #A8331F;
+  --warn-bg: #FBEDEA;
+  --f-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F151A; --surface: #161F26; --ink: #E5EBEE; --muted: #94A2AB; --rule: #2A3640; --grid: #212C34;
+    --level: #82AADA; --grow: #E3A64A; --warn: #F08B7C; --warn-bg: #2C1B19; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F151A; --surface: #161F26; --ink: #E5EBEE; --muted: #94A2AB; --rule: #2A3640; --grid: #212C34;
+  --level: #82AADA; --grow: #E3A64A; --warn: #F08B7C; --warn-bg: #2C1B19; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1040px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 48px; }
+header { display: grid; gap: 6px; margin-bottom: 24px; max-width: 70ch; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+h1 { font-family: var(--f-display); font-weight: 600; font-size: clamp(28px, 4vw, 38px); line-height: 1.1; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); margin: 0; }
+.stack { display: grid; gap: 16px; min-width: 0; }
+.ctrls { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px !important; }
+.ctrl label { display: inline-flex; align-items: center; gap: 6px; }
+input[type=range].lv { accent-color: var(--level); }
+input[type=range].gr { accent-color: var(--grow); }
+.formulas { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 32px; }
+.formulas .formula { border-top: 0; padding-top: 0; }
+.panel > .hint { margin: 14px 0 0; }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; min-width: 0; }
+.panel h2 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 0 0 12px; }
+.ctrl { display: grid; gap: 4px; }
+.ctrls { display: grid; gap: 16px; }
+.ctrl-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ctrl label { font-weight: 500; }
+.ctrl .sym { margin-left: 2px; font-family: var(--f-display); font-style: italic; color: var(--muted); margin-left: 4px; }
+.val { font-family: var(--f-num); font-variant-numeric: tabular-nums; font-size: 14px; }
+input[type=range] { width: 100%; margin: 0; accent-color: var(--ink); }
+input[type=number] { font-family: var(--f-num); font-size: 14px; width: 96px; padding: 4px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink); text-align: right; }
+input:focus-visible, button:focus-visible { outline: 2px solid var(--level); outline-offset: 2px; }
+.hint { font-size: 12.5px; color: var(--muted); }
+.formula { display: grid; gap: 4px; padding-block: 12px; border-top: 1px solid var(--rule); }
+.formula:first-of-type { border-top: 0; padding-top: 0; }
+.f-head { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.swatch { width: 12px; height: 12px; border-radius: 2px; flex: none; }
+.sw-level { background: var(--level); }
+.sw-grow { background: var(--grow); }
+.eq { font-family: var(--f-display); font-size: 20px; }
+.eq i { font-style: italic; }
+.sub { font-family: var(--f-num); font-size: 13.5px; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.pv { font-family: var(--f-num); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.pv.level { color: var(--level); }
+.pv.grow { color: var(--grow); }
+.compare { font-size: 13.5px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 12px; margin: 0; }
+.warn { background: var(--warn-bg); color: var(--warn); border-radius: 6px; padding: 8px 10px; font-size: 13.5px; }
+.chart-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 16px; margin-bottom: 8px; }
+.chart-head h2 { margin: 0; }
+.chart-title { font-family: var(--f-display); font-size: 20px; font-weight: 600; margin: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); }
+.legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; padding: 2px; background: var(--bg); }
+.seg button { font: inherit; font-size: 13px; border: 0; background: transparent; color: var(--muted); padding: 5px 12px; border-radius: 6px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); font-weight: 500; }
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
+.chart text { font-family: var(--f-num); font-size: 11px; fill: var(--muted); }
+.chart .axis-title { font-family: var(--f-body); font-size: 11.5px; }
+.chart .gridline { stroke: var(--grid); stroke-width: 1; }
+.chart .baseline { stroke: var(--rule); stroke-width: 1; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 14px rgba(0,0,0,.12); min-width: 160px; z-index: 2; }
+.tip b { font-weight: 600; display: block; margin-bottom: 4px; }
+.tip .row { display: flex; justify-content: space-between; gap: 14px; font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+.tip .row span:first-child { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-body); color: var(--muted); }
+.caption { font-size: 13px; color: var(--muted); margin: 10px 0 0; max-width: 72ch; }
+.readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 10px 0 8px; }
+.readout { border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; }
+.readout .r-head { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+.readout dl { display: grid; grid-template-columns: auto auto; justify-content: space-between; gap: 2px 12px; margin: 0; font-size: 13.5px; }
+.readout dt { color: var(--muted); }
+.readout dd { margin: 0; font-family: var(--f-num); font-variant-numeric: tabular-nums; text-align: right; }
+.notes { font-size: 13px; color: var(--muted); max-width: 72ch; margin-top: 8px; display: grid; gap: 6px; }
+.notes p { margin: 0; }
+.head-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+header { max-width: none !important; }
+header .lede { max-width: 70ch; }
+.size-btn { font: inherit; font-size: 13px; font-weight: 500; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.size-btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.r-ctrl { max-width: 460px; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--rule); }
+/* Classroom size: everything scaled for projection */
+.classroom body, body.classroom { font-size: 19px; }
+.classroom .wrap { max-width: 1280px; }
+.classroom h1 { font-size: clamp(34px, 5vw, 50px); }
+.classroom .lede { font-size: 20px; }
+.classroom .eyebrow, .classroom .panel h2 { font-size: 16px; }
+.classroom .size-btn { font-size: 16px; }
+.classroom .chart-title { font-size: 28px; }
+.classroom .legend, .classroom .seg button { font-size: 17px; }
+.classroom .val, .classroom .sub { font-size: 18px; }
+.classroom .hint, .classroom .caption, .classroom .compare, .classroom .notes { font-size: 17px; }
+.classroom .eq { font-size: 30px; }
+.classroom .pv { font-size: 36px; }
+.classroom .readout .r-head { font-size: 18px; }
+.classroom .readout dl { font-size: 18px; }
+.classroom .chart text { font-size: 15px; }
+.classroom .chart .axis-title { font-size: 16px; }
+.classroom .tip { font-size: 16px; min-width: 210px; }
+.classroom .swatch { width: 15px; height: 15px; }
+.classroom input[type=range] { height: 28px; }
+.classroom .r-ctrl { max-width: 560px; }
+@media (max-width: 640px) { .ctrls { grid-template-columns: 1fr; } }
+</style>
 
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <div class="head-row">
+      <div class="eyebrow">Valuation fundamentals</div>
+      <button type="button" class="size-btn" id="btn-size" aria-pressed="false">Classroom size</button>
+    </div>
+    <h1>Perpetuity Explorer</h1>
+    <p class="lede">Compare a level perpetuity with a growing one. Set each stream's first cash flow, the discount rate and the growth rate, and watch the cash flows and their value today respond.</p>
+  </header>
+
+  <div class="stack">
+    <section class="panel" aria-labelledby="h-c1">
+      <div class="chart-head">
+        <p class="chart-title" id="h-c1">Cash flows by year</p>
+        <div class="seg" role="group" aria-label="Chart 1 view">
+          <button type="button" id="btn-cf" aria-pressed="true">Cash flows</button>
+          <button type="button" id="btn-pv" aria-pressed="false">Present values</button>
+        </div>
+      </div>
+      <div class="legend"><span><span class="swatch sw-level"></span><span>Level: <i>C</i><sub>L</sub> every year</span></span><span><span class="swatch sw-grow"></span><span>Growing: <i>C</i><sub>G</sub>(1+<i>g</i>)<sup><i>t</i>−1</sup></span></span></div>
+      <div class="chart" id="chart1"></div>
+      <p class="caption" id="cap1"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-inputs">
+      <h2 id="h-inputs">Inputs</h2>
+      <div class="ctrls">
+        <div class="ctrl">
+          <div class="ctrl-top"><label for="in-cl"><span class="swatch sw-level"></span>Level first cash flow<span class="sym">C<sub>L</sub></span></label><span class="val" id="v-cl"></span></div>
+          <input id="in-cl" class="lv" type="range" min="10" max="300" step="5" value="100">
+        </div>
+        <div class="ctrl">
+          <div class="ctrl-top"><label for="in-cg"><span class="swatch sw-grow"></span>Growing first cash flow<span class="sym">C<sub>G</sub></span></label><span class="val" id="v-cg"></span></div>
+          <input id="in-cg" class="gr" type="range" min="10" max="300" step="5" value="100">
+        </div>
+        <div class="ctrl">
+          <div class="ctrl-top"><label for="in-g">Growth rate<span class="sym">g</span></label><span class="val" id="v-g"></span></div>
+          <input id="in-g" class="gr" type="range" min="-5" max="15" step="0.25" value="3">
+        </div>
+        <div class="ctrl">
+          <div class="ctrl-top"><label for="in-n">Years shown</label><span class="val" id="v-n"></span></div>
+          <input id="in-n" type="range" min="10" max="100" step="5" value="40">
+        </div>
+      </div>
+      <p class="hint">First cash flows arrive at the end of year 1. Growth applies to the growing perpetuity only.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-val">
+      <h2 id="h-val">Value today</h2>
+      <div class="ctrl r-ctrl">
+        <div class="ctrl-top"><label for="in-r">Discount rate<span class="sym">r</span></label><span class="val" id="v-r"></span></div>
+        <input id="in-r" type="range" min="0.5" max="20" step="0.25" value="8">
+      </div>
+      <div class="formulas">
+        <div class="formula">
+          <div class="f-head"><span class="swatch sw-level"></span>Level perpetuity</div>
+          <div class="eq">PV = <i>C</i><sub>L</sub> / <i>r</i></div>
+          <div class="sub" id="sub-level"></div>
+          <div class="pv level" id="pv-level"></div>
+        </div>
+        <div class="formula">
+          <div class="f-head"><span class="swatch sw-grow"></span>Growing perpetuity</div>
+          <div class="eq">PV = <i>C</i><sub>G</sub> / (<i>r</i> − <i>g</i>)</div>
+          <div class="sub" id="sub-grow"></div>
+          <div class="pv grow" id="pv-grow"></div>
+          <div class="warn" id="warn" hidden>No finite value. When <i>g</i> ≥ <i>r</i>, each discounted cash flow is at least as large as the one before, so the sum never converges.</div>
+        </div>
+      </div>
+      <p class="compare" id="compare"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-c2">
+      <div class="chart-head">
+        <p class="chart-title" id="h-c2">Share of value by year</p>
+        <div class="legend"><span><span class="swatch sw-level"></span>Level</span><span><span class="swatch sw-grow"></span>Growing</span><span><svg width="22" height="8" aria-hidden="true"><line x1="0" y1="4" x2="22" y2="4" stroke="currentColor" stroke-dasharray="4 3"/></svg>Formula value</span></div>
+      </div>
+      <div class="readouts">
+        <div class="readout"><div class="r-head"><span class="swatch sw-level"></span>Level perpetuity</div><dl id="ro-level"></dl></div>
+        <div class="readout"><div class="r-head"><span class="swatch sw-grow"></span>Growing perpetuity</div><dl id="ro-grow"></dl></div>
+      </div>
+      <div class="chart" id="chart2"></div>
+      <p class="caption">Each curve adds up the discounted cash flows from year 1 through year <i>T</i> and approaches the perpetuity formula value from below. The dots mark where each stream has delivered 50% and 90% of its value. Years to reach a share <i>p</i>: <i>T</i> = ln(1/(1−<i>p</i>)) / ln((1+<i>r</i>)/(1+<i>g</i>)), which does not depend on the first cash flow.</p>
+    </section>
+
+    <div class="notes">
+      <p>Timing convention: the first cash flow arrives one year from today, so PV = Σ <i>C</i>(1+<i>g</i>)<sup><i>t</i>−1</sup>/(1+<i>r</i>)<sup><i>t</i></sup> for <i>t</i> = 1, 2, 3, … The level perpetuity is the special case <i>g</i> = 0.</p>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  const st = { CL: 100, CG: 100, r: 0.08, g: 0.03, N: 40, mode: 'cf' };
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+
+  const fmtMoney = (v, d) => {
+    if (!isFinite(v)) return '∞';
+    const dd = d != null ? d : (Math.abs(v) >= 100 ? 0 : 2);
+    return '$' + v.toLocaleString('en-US', { minimumFractionDigits: dd, maximumFractionDigits: dd });
+  };
+  const fmtAxis = v => {
+    if (v >= 1e6) return '$' + (v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 1 }) + 'M';
+    if (v >= 1e4) return '$' + (v / 1e3).toLocaleString('en-US', { maximumFractionDigits: 0 }) + 'k';
+    if (v >= 10) return '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    return '$' + v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  };
+  const fmtPct = v => (v * 100).toFixed(2).replace(/\.?0+$/, '') + '%';
+  const fmtDec = v => (+v.toFixed(4)).toString();
+
+  function niceTicks(max, count) {
+    if (!(max > 0)) max = 1;
+    const raw = max / count;
+    const p = Math.pow(10, Math.floor(Math.log10(raw)));
+    const f = raw / p;
+    const step = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p;
+    const top = Math.ceil(max / step - 1e-9) * step;
+    const ticks = [];
+    for (let v = 0; v <= top + step / 2; v += step) ticks.push(+v.toPrecision(12));
+    return { ticks, top };
+  }
+  function xStep(n, maxLabels) {
+    for (const s of [1, 2, 5, 10, 20, 25, 50, 100]) if (n / s <= maxLabels) return s;
+    return 100;
+  }
+  const el = (tag, attrs, parent) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+  const txt = (parent, x, y, s, attrs) => { const t = el('text', Object.assign({ x, y }, attrs || {}), parent); t.textContent = s; return t; };
+
+  // Closed forms
+  const pvLevel = () => st.CL / st.r;
+  const pvGrow = () => st.g < st.r ? st.CG / (st.r - st.g) : Infinity;
+  const cumLevel = T => st.CL / st.r * (1 - Math.pow(1 + st.r, -T));
+  const cumGrow = T => {
+    if (Math.abs(st.r - st.g) < 1e-12) return T * st.CG / (1 + st.r);
+    return st.CG / (st.r - st.g) * (1 - Math.pow((1 + st.g) / (1 + st.r), T));
+  };
+  const yearsTo = (p, growth) => {
+    const ratio = (1 + st.r) / (1 + growth);
+    if (ratio <= 1) return Infinity;
+    return Math.log(1 / (1 - p)) / Math.log(ratio);
+  };
+
+  function makeTip(container) {
+    let tip = container.querySelector('.tip');
+    if (!tip) { tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; container.appendChild(tip); }
+    return tip;
+  }
+  function placeTip(tip, container, px, py) {
+    const cw = container.clientWidth;
+    const tw = tip.offsetWidth;
+    let left = px + 14;
+    if (left + tw > cw) left = px - tw - 14;
+    if (left < 0) left = 0;
+    tip.style.left = left + 'px';
+    tip.style.top = Math.max(0, py - 10) + 'px';
+  }
+  const tipRow = (cls, label, val) => `<div class="row"><span><span class="swatch ${cls}"></span>${label}</span><span>${val}</span></div>`;
+
+  /* ---------- Chart 1: cash flows / PVs by year ---------- */
+  function renderChart1() {
+    const box = $('chart1');
+    const W = Math.max(280, box.clientWidth);
+    const big = document.documentElement.classList.contains('classroom');
+    const H = (W < 520 ? 240 : 300) * (big ? 1.25 : 1);
+    const m = { l: big ? 72 : 56, r: 10, t: 12, b: big ? 48 : 38 };
+    const iw = W - m.l - m.r, ih = H - m.t - m.b;
+    const pv = st.mode === 'pv';
+    const rows = [];
+    for (let t = 1; t <= st.N; t++) {
+      const df = Math.pow(1 + st.r, -t);
+      const lv = st.CL, gr = st.CG * Math.pow(1 + st.g, t - 1);
+      rows.push({ t, df, lv, gr, lvPV: lv * df, grPV: gr * df });
+    }
+    const lvKey = pv ? 'lvPV' : 'lv', grKey = pv ? 'grPV' : 'gr';
+    const ymax = Math.max(...rows.map(d => Math.max(d[lvKey], d[grKey])));
+    const { ticks, top } = niceTicks(ymax * 1.04, 5);
+    const y = v => m.t + ih - (v / top) * ih;
+    const band = iw / st.N;
+
+    box.querySelectorAll('svg').forEach(s => s.remove());
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': pv ? 'Present value of each year\'s cash flow' : 'Cash flow in each year' });
+    box.insertBefore(svg, box.firstChild);
+    ticks.forEach(v => {
+      el('line', { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), class: v === 0 ? 'baseline' : 'gridline' }, svg);
+      txt(svg, m.l - 8, y(v) + 4, fmtAxis(v), { 'text-anchor': 'end' });
+    });
+    const hl = el('rect', { x: 0, y: m.t, width: band, height: ih, fill: 'var(--grid)', opacity: 0 }, svg);
+    const inner = band * 0.8, bw = Math.max(0.6, inner / 2);
+    rows.forEach(d => {
+      const x0 = m.l + (d.t - 1) * band + band * 0.1;
+      el('rect', { x: x0, y: y(d[lvKey]), width: bw, height: Math.max(0, y(0) - y(d[lvKey])), fill: 'var(--level)' }, svg);
+      el('rect', { x: x0 + bw, y: y(d[grKey]), width: bw, height: Math.max(0, y(0) - y(d[grKey])), fill: 'var(--grow)' }, svg);
+    });
+    const step = xStep(st.N, W < 520 ? 6 : (big ? 8 : 10));
+    for (let t = 1; t <= st.N; t++) {
+      if (t === 1 || t % step === 0) txt(svg, m.l + (t - 0.5) * band, H - m.b + (big ? 20 : 16), t, { 'text-anchor': 'middle' });
+    }
+    txt(svg, m.l + iw / 2, H - 6, 'Year', { 'text-anchor': 'middle', class: 'axis-title' });
+
+    // hover
+    const tip = makeTip(box);
+    const hit = el('rect', { x: m.l, y: m.t, width: iw, height: ih, fill: 'transparent' }, svg);
+    const move = e => {
+      const r = svg.getBoundingClientRect();
+      const sx = (e.clientX - r.left) * (W / r.width);
+      const t = Math.min(st.N, Math.max(1, Math.floor((sx - m.l) / band) + 1));
+      const d = rows[t - 1];
+      hl.setAttribute('x', m.l + (t - 1) * band); hl.setAttribute('opacity', 1);
+      tip.innerHTML = `<b>Year ${t}</b>` +
+        (pv
+          ? tipRow('sw-level', 'Level PV', fmtMoney(d.lvPV, 2)) + tipRow('sw-grow', 'Growing PV', fmtMoney(d.grPV, 2)) +
+            `<div class="row"><span>Discount factor</span><span>${d.df.toFixed(4)}</span></div>`
+          : tipRow('sw-level', 'Level', fmtMoney(d.lv, 2)) + tipRow('sw-grow', 'Growing', fmtMoney(d.gr, 2)));
+      tip.hidden = false;
+      placeTip(tip, box, (m.l + (t - 0.5) * band) * (r.width / W), (e.clientY - r.top));
+    };
+    hit.addEventListener('pointermove', move);
+    hit.addEventListener('pointerdown', move);
+    hit.addEventListener('pointerleave', () => { tip.hidden = true; hl.setAttribute('opacity', 0); });
+
+    const last = rows[rows.length - 1];
+    $('cap1').innerHTML = pv
+      ? `Each bar is that year's cash flow times 1/(1+<i>r</i>)<sup><i>t</i></sup>. In year ${st.N}, $1 is worth ${fmtMoney(last.df, 3)} today. The growing stream's discounted bars shrink by a factor of (1+<i>g</i>)/(1+<i>r</i>) = ${((1 + st.g) / (1 + st.r)).toFixed(4)} each year${st.g >= st.r ? ', which is not below 1, so they never shrink' : ''}.`
+      : `The level stream pays ${fmtMoney(st.CL, 0)} every year. The growing stream starts at ${fmtMoney(st.CG, 0)} and reaches ${fmtMoney(last.gr, 0)} by year ${st.N}.`;
+  }
+
+  /* ---------- Chart 2: cumulative PV ---------- */
+  function renderChart2() {
+    const box = $('chart2');
+    const W = Math.max(280, box.clientWidth);
+    const big = document.documentElement.classList.contains('classroom');
+    const H = (W < 520 ? 250 : 320) * (big ? 1.25 : 1);
+    const m = { l: big ? 76 : 56, r: 12, t: 16, b: big ? 48 : 38 };
+    const iw = W - m.l - m.r, ih = H - m.t - m.b;
+    const PVL = pvLevel(), PVG = pvGrow();
+    const finiteG = isFinite(PVG);
+    const t95 = Math.max(yearsTo(0.95, 0), finiteG ? yearsTo(0.95, st.g) : 0);
+    let xmax = Math.ceil(Math.min(300, Math.max(30, t95)));
+    const s = xStep(xmax, big ? 7 : 8); xmax = Math.ceil(xmax / s) * s;
+    const ymaxRaw = finiteG ? Math.max(PVG, PVL) : Math.max(PVL, cumGrow(xmax));
+    const { ticks, top } = niceTicks(ymaxRaw * 1.06, 5);
+    const x = T => m.l + (T / xmax) * iw;
+    const y = v => m.t + ih - (Math.min(v, top) / top) * ih;
+
+    box.querySelectorAll('svg').forEach(sv => sv.remove());
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': 'Cumulative present value by year' });
+    box.insertBefore(svg, box.firstChild);
+    ticks.forEach(v => {
+      el('line', { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), class: v === 0 ? 'baseline' : 'gridline' }, svg);
+      txt(svg, m.l - 8, y(v) + 4, fmtAxis(v), { 'text-anchor': 'end' });
+    });
+    for (let T = 0; T <= xmax; T += s) txt(svg, x(T), H - m.b + (big ? 20 : 16), T, { 'text-anchor': 'middle' });
+    txt(svg, m.l + iw / 2, H - 6, 'Years of cash flows included (T)', { 'text-anchor': 'middle', class: 'axis-title' });
+
+    // asymptotes
+    const asym = (v, color, label) => {
+      el('line', { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: color, 'stroke-dasharray': '5 4', 'stroke-width': 1.25 }, svg);
+      txt(svg, W - m.r - 2, y(v) - 6, label, { 'text-anchor': 'end', style: `fill:${color}` });
+    };
+    const close = isFinite(PVG) && Math.abs(y(PVG) - y(PVL)) < 16;
+    const lvBelow = close && PVL <= PVG;
+    el('line', { x1: m.l, x2: W - m.r, y1: y(PVL), y2: y(PVL), stroke: 'var(--level)', 'stroke-dasharray': '5 4', 'stroke-width': 1.25 }, svg);
+    txt(svg, lvBelow ? m.l + 30 : W - m.r - 2, lvBelow ? y(PVL) + 14 : y(PVL) - 6, 'CL/r = ' + fmtMoney(PVL, 0), { 'text-anchor': lvBelow ? 'start' : 'end', style: 'fill:var(--level)' });
+    if (finiteG) {
+      const gap = Math.abs(y(PVG) - y(PVL));
+      const lbl = 'CG/(r−g) = ' + fmtMoney(PVG, 0);
+      el('line', { x1: m.l, x2: W - m.r, y1: y(PVG), y2: y(PVG), stroke: 'var(--grow)', 'stroke-dasharray': '5 4', 'stroke-width': 1.25 }, svg);
+      const ly = (gap < 16 && PVG < PVL) ? y(PVG) + 14 : y(PVG) - 6; void asym;
+      const gb = gap < 16 && PVG < PVL;
+      txt(svg, gb ? m.l + 30 : W - m.r - 2, ly, lbl, { 'text-anchor': gb ? 'start' : 'end', style: 'fill:var(--grow)' });
+    }
+
+    // curves
+    const path = fn => { let d = ''; for (let T = 0; T <= xmax; T++) d += (T ? 'L' : 'M') + x(T).toFixed(2) + ',' + y(fn(T)).toFixed(2); return d; };
+    el('path', { d: path(cumLevel), fill: 'none', stroke: 'var(--level)', 'stroke-width': 2.25, 'stroke-linejoin': 'round' }, svg);
+    el('path', { d: path(cumGrow), fill: 'none', stroke: 'var(--grow)', 'stroke-width': 2.25, 'stroke-linejoin': 'round' }, svg);
+
+    // milestone dots
+    const dot = (T, v, color, label, below) => {
+      if (!isFinite(T) || T > xmax) return;
+      el('circle', { cx: x(T), cy: y(v), r: 4.5, fill: 'var(--surface)', stroke: color, 'stroke-width': 2 }, svg);
+      txt(svg, x(T) + 7, y(v) + (below ? 15 : -7), label, { style: `fill:${color}` });
+    };
+    [0.5, 0.9].forEach(p => {
+      dot(yearsTo(p, 0), p * PVL, 'var(--level)', Math.round(p * 100) + '%', true);
+      if (finiteG) dot(yearsTo(p, st.g), p * PVG, 'var(--grow)', Math.round(p * 100) + '%', false);
+    });
+
+    // hover
+    const tip = makeTip(box);
+    const guide = el('line', { x1: 0, x2: 0, y1: m.t, y2: m.t + ih, stroke: 'var(--muted)', 'stroke-width': 1, opacity: 0 }, svg);
+    const hit = el('rect', { x: m.l, y: m.t, width: iw, height: ih, fill: 'transparent' }, svg);
+    const move = e => {
+      const r = svg.getBoundingClientRect();
+      const sx = (e.clientX - r.left) * (W / r.width);
+      const T = Math.min(xmax, Math.max(1, Math.round((sx - m.l) / iw * xmax)));
+      guide.setAttribute('x1', x(T)); guide.setAttribute('x2', x(T)); guide.setAttribute('opacity', 0.5);
+      const cl = cumLevel(T), cg = cumGrow(T);
+      tip.innerHTML = `<b>Years 1–${T}</b>` +
+        tipRow('sw-level', 'Level', fmtMoney(cl, 0) + ' · ' + Math.round(cl / PVL * 100) + '%') +
+        tipRow('sw-grow', 'Growing', fmtMoney(cg, 0) + (finiteG ? ' · ' + Math.round(cg / PVG * 100) + '%' : ''));
+      tip.hidden = false;
+      placeTip(tip, box, x(T) * (r.width / W), e.clientY - r.top);
+    };
+    hit.addEventListener('pointermove', move);
+    hit.addEventListener('pointerdown', move);
+    hit.addEventListener('pointerleave', () => { tip.hidden = true; guide.setAttribute('opacity', 0); });
+
+    // readouts
+    const yrs = T => !isFinite(T) ? 'never' : 'year ' + Math.ceil(T - 1e-9);
+    const ro = (growth, total) => `
+      <dt>Formula value</dt><dd>${fmtMoney(total, 0)}</dd>
+      <dt>50% of value by</dt><dd>${isFinite(total) ? yrs(yearsTo(0.5, growth)) : '—'}</dd>
+      <dt>90% of value by</dt><dd>${isFinite(total) ? yrs(yearsTo(0.9, growth)) : '—'}</dd>
+      <dt>First 10 years</dt><dd>${isFinite(total) ? Math.round((growth === 0 ? cumLevel(10) : cumGrow(10)) / total * 100) + '%' : fmtMoney(cumGrow(10), 0)}</dd>`;
+    $('ro-level').innerHTML = ro(0, PVL);
+    $('ro-grow').innerHTML = ro(st.g, PVG);
+  }
+
+  function renderText() {
+    $('v-r').textContent = fmtPct(st.r);
+    $('v-g').textContent = fmtPct(st.g);
+    $('v-n').textContent = st.N + ' yrs';
+    const PVL = pvLevel(), PVG = pvGrow();
+    $('v-cl').textContent = fmtMoney(st.CL, 0);
+    $('v-cg').textContent = fmtMoney(st.CG, 0);
+    $('sub-level').textContent = `= ${fmtMoney(st.CL, 0)} / ${fmtDec(st.r)}`;
+    $('pv-level').textContent = fmtMoney(PVL, 2);
+    const finiteG = isFinite(PVG);
+    $('sub-grow').textContent = `= ${fmtMoney(st.CG, 0)} / (${fmtDec(st.r)} − ${st.g < 0 ? '(' + fmtDec(st.g) + ')' : fmtDec(st.g)})` + (finiteG ? ` = ${fmtMoney(st.CG, 0)} / ${fmtDec(st.r - st.g)}` : '');
+    $('pv-grow').textContent = finiteG ? fmtMoney(PVG, 2) : '∞';
+    $('warn').hidden = finiteG;
+    const c = $('compare');
+    if (!finiteG) c.innerHTML = 'Lower <i>g</i> below <i>r</i> to get a finite value.';
+    else {
+      const mult = PVG / PVL;
+      const same = st.CL === st.CG;
+      if (same && Math.abs(st.g) < 1e-9) c.innerHTML = 'With equal first cash flows and <i>g</i> = 0, the two perpetuities are identical.';
+      else c.innerHTML = `The growing perpetuity is worth <strong>${mult.toFixed(2)}×</strong> the level one` +
+        (same ? `, since <i>r</i>/(<i>r</i>−<i>g</i>) = ${fmtDec(st.r)}/${fmtDec(st.r - st.g)}.`
+              : `. That is (${fmtMoney(st.CG,0)}/${fmtMoney(st.CL,0)}) × <i>r</i>/(<i>r</i>−<i>g</i>) = ${(st.CG/st.CL).toFixed(2)} × ${(st.r/(st.r-st.g)).toFixed(2)}.` +
+                (PVG > PVL || PVG < PVL ? ` A level payment of ${fmtMoney(st.CG*st.r/(st.r-st.g),2)} would match it.` : ''));
+    }
+  }
+
+  function renderAll() { renderText(); renderChart1(); renderChart2(); }
+
+  $('in-r').addEventListener('input', e => { st.r = +e.target.value / 100; renderAll(); });
+  $('in-g').addEventListener('input', e => { st.g = +e.target.value / 100; renderAll(); });
+  $('in-n').addEventListener('input', e => { st.N = +e.target.value; renderAll(); });
+  $('in-cl').addEventListener('input', e => { st.CL = +e.target.value; renderAll(); });
+  $('in-cg').addEventListener('input', e => { st.CG = +e.target.value; renderAll(); });
+  const setMode = mode => {
+    st.mode = mode;
+    $('btn-cf').setAttribute('aria-pressed', mode === 'cf');
+    $('btn-pv').setAttribute('aria-pressed', mode === 'pv');
+    $('h-c1').textContent = mode === 'cf' ? 'Cash flows by year' : 'Present value of each cash flow';
+    renderChart1();
+  };
+  $('btn-cf').addEventListener('click', () => setMode('cf'));
+  $('btn-pv').addEventListener('click', () => setMode('pv'));
+
+  const setSize = on => {
+    document.documentElement.classList.toggle('classroom', on);
+    $('btn-size').setAttribute('aria-pressed', on);
+    try { localStorage.setItem('perp-classroom', on ? '1' : '0'); } catch (e) {}
+  };
+  $('btn-size').addEventListener('click', () => { setSize(!document.documentElement.classList.contains('classroom')); renderAll(); });
+  try { if (localStorage.getItem('perp-classroom') === '1') setSize(true); } catch (e) {}
+
+  // sync state with any preserved form values
+  st.CL = +$('in-cl').value; st.CG = +$('in-cg').value; st.r = +$('in-r').value / 100; st.g = +$('in-g').value / 100; st.N = +$('in-n').value;
+  renderAll();
+  let raf;
+  new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { renderChart1(); renderChart2(); }); }).observe($('chart1'));
+})();
+</script>
+</body>
+</html>
