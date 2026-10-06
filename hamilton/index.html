@@ -1,1 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hamilton Decision Tree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: projection board. Tree as hero, controls directly under it, then value bars, then the information panels. --k scales all type for classroom mode. */
+:root{
+  --k:1;
+  --bg:#F3F5F7; --surface:#FFFFFF; --ink:#18202B; --muted:#5B6675; --rule:#D5DBE2;
+  --accent:#0E7C74; --accent-soft:rgba(14,124,116,.14);
+  --bb:#C48A12; --s:#3C6DB4; --f:#B5483E; --direct:#8A5CC2; --pub:#D0662F; --prod:#2F5E8C; --crea:#7C8794;
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --body:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161C; --surface:#1A2029; --ink:#E7ECF2; --muted:#9AA6B5; --rule:#2E3846;
+  --accent:#3CC4B7; --accent-soft:rgba(60,196,183,.16);
+  --bb:#E2AE3E; --s:#78A2E6; --f:#E57A6E; --direct:#B490E6; --pub:#F0945F; --prod:#7FA8D6; --crea:#A3ADBA; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161C; --surface:#1A2029; --ink:#E7ECF2; --muted:#9AA6B5; --rule:#2E3846;
+  --accent:#3CC4B7; --accent-soft:rgba(60,196,183,.16);
+  --bb:#E2AE3E; --s:#78A2E6; --f:#E57A6E; --direct:#B490E6; --pub:#F0945F; --prod:#7FA8D6; --crea:#A3ADBA; color-scheme:dark}
+.big{--k:1.3}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:calc(15px*var(--k));line-height:1.45}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:18px 40px;display:grid;gap:16px}
+.big .wrap{max-width:1680px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+header h1{font-family:var(--display);font-stretch:78%;font-weight:800;font-size:2em;letter-spacing:-.01em;margin:0;line-height:1.05;text-wrap:balance}
+.eyebrow{font-size:.8em;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:16px 18px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+h2{font-family:var(--display);font-stretch:85%;font-size:1.27em;font-weight:700;margin:0 0 2px}
+.note{font-size:.87em;color:var(--muted);margin:0 0 10px;max-width:72ch}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{font:inherit;font-size:.9em;font-weight:600;padding:.45em .8em;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.controls{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center}
+@media (max-width:760px){.controls{grid-template-columns:1fr}}
+.slider-row{display:grid;gap:4px;min-width:0}
+.slider-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.slider-head b{font-family:var(--mono);font-weight:600;font-size:1.1em}
+input[type=range]{width:100%;accent-color:var(--accent);height:calc(22px*var(--k))}
+.snap{display:flex;justify-content:space-between;font-size:.85em;color:var(--muted)}
+.snap button{font:inherit;background:none;border:0;color:var(--muted);cursor:pointer;padding:2px 0;text-decoration:underline dotted;text-underline-offset:3px}
+.rate{display:flex;align-items:center;gap:8px;font-size:.93em;color:var(--muted)}
+.rate input{width:4.2em;font:inherit;font-family:var(--mono);padding:.35em .5em;border:1px solid var(--rule);border-radius:6px;background:var(--bg);color:var(--ink)}
+.verdict{font-size:1.05em;margin:0}
+.tree-scroll{overflow-x:auto}
+#tree{display:block;width:100%;min-width:760px;height:auto}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:.84em;color:var(--muted);margin-top:6px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{display:inline-block;width:.7em;height:.7em;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.lower{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px}
+@media (max-width:900px){.two,.lower{grid-template-columns:1fr}}
+svg.chart{display:block;width:100%;height:auto}
+.post-row{display:grid;grid-template-columns:5em minmax(0,1fr) 6.2em 4.4em;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--rule)}
+.post-row:first-of-type{border-top:0}
+.post-row .nm{font-weight:700}
+.post-row .nm small{display:block;font-family:var(--mono);font-weight:400;color:var(--muted);font-size:.8em}
+.bar{position:relative;height:1.45em;display:flex;border-radius:4px;overflow:hidden;background:var(--rule)}
+.bar i{display:block;height:100%}
+.bar .tick{position:absolute;top:-3px;bottom:-3px;width:0;border-left:2px dashed var(--ink);opacity:.55}
+.ev{font-family:var(--mono);font-size:.9em;text-align:right;font-variant-numeric:tabular-nums}
+.chip{font-size:.8em;font-weight:700;padding:3px 8px;border-radius:99px;text-align:center}
+.chip.go{background:var(--accent-soft);color:var(--accent)}
+.chip.close{background:color-mix(in srgb,var(--f) 16%,transparent);color:var(--f)}
+.keyrow{display:flex;gap:14px;font-size:.8em;color:var(--muted);flex-wrap:wrap;margin:4px 0 8px}
+table.lik{border-collapse:separate;border-spacing:3px;font-size:.87em;margin-top:6px}
+table.lik th{font-weight:600;color:var(--muted);font-size:.92em;text-align:center;padding:2px 6px}
+table.lik th[scope=row]{text-align:left}
+table.lik td{font-family:var(--mono);text-align:center;width:4.8em;height:2em;border-radius:4px;font-variant-numeric:tabular-nums}
+.split{display:grid;gap:16px}
+footer{font-size:.8em;color:var(--muted);max-width:95ch}
+svg text{font-family:var(--body)}
+svg .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+svg .halo{paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+@keyframes flow{to{stroke-dashoffset:-24}}
+@media (prefers-reduced-motion:no-preference){svg .flowline{animation:flow 1.1s linear infinite}}
+</style>
+</head>
+<body>
 
+<div class="wrap" id="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">FIN1 · Hamilton (HBS 222-018) · Outside investors' NPV</div>
+      <h1>Go straight to Broadway, or test it at The Public?</h1>
+    </div>
+    <div class="seg" role="group" aria-label="Text size">
+      <button id="sz-normal" aria-pressed="true">Standard text</button>
+      <button id="sz-big" aria-pressed="false">Classroom text</button>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Decision tree</h2>
+        <p class="note" id="tree-note"></p>
+      </div>
+      <div class="seg" role="group" aria-label="Tree style">
+        <button id="st-flow" aria-pressed="true">Flow</button>
+        <button id="st-classic" aria-pressed="false">Classic</button>
+      </div>
+    </div>
+    <div class="tree-scroll"><svg id="tree" role="img" aria-label="Decision tree for Hamilton"></svg></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="panel controls" aria-label="Controls">
+    <div class="slider-row">
+      <div class="slider-head">
+        <label for="theta" class="eyebrow">How revealing are the reviews at The Public?</label>
+        <span><b id="theta-val">θ = 1.00</b> <span id="theta-desc" style="color:var(--muted)"></span></span>
+      </div>
+      <input id="theta" type="range" min="0" max="2" step="0.01" value="1">
+      <div class="snap">
+        <button data-t="0">No information</button>
+        <button data-t="1">Case reviews</button>
+        <button data-t="2">Fully revealing</button>
+      </div>
+    </div>
+    <div class="rate">
+      <label for="rate">Discount rate</label>
+      <input id="rate" type="number" min="1" max="20" step="0.5" value="7">%
+    </div>
+  </section>
+
+  <p class="verdict" id="verdict"></p>
+
+  <section class="two">
+    <div class="panel">
+      <h2>From going direct to The Public</h2>
+      <p class="note">Outside investors' NPV, December 2014. The Public takes a cut, and the trial run gives you something to act on. The option to walk away splits into what it is worth with no news and what the reviews add.</p>
+      <svg id="wf" class="chart" role="img" aria-label="Waterfall from direct to Broadway to The Public with optimal abandonment"></svg>
+    </div>
+    <div class="panel">
+      <h2>Who gets what</h2>
+      <p class="note">Expected present value to each party, December 2014, under the investors' best policy after the reviews. Only investors put up capital.</p>
+      <svg id="who" class="chart" role="img" aria-label="Value by party, direct versus The Public"></svg>
+      <p class="note" id="who-note" style="margin:8px 0 0"></p>
+    </div>
+  </section>
+
+  <section class="lower">
+    <div class="panel">
+      <h2>Value of information</h2>
+      <p class="note">NPV of each path as the reviews become more revealing. The shaded area is what the reviews add over a trial that tells you nothing.</p>
+      <svg id="chart" class="chart" role="img" aria-label="NPV versus informativeness of reviews"></svg>
+    </div>
+    <div class="split">
+      <div class="panel">
+        <h2>What the reviews say</h2>
+        <p class="note">Posterior odds of each Broadway fate after each review. Dashed ticks mark the 6 / 24 / 70 prior; the farther the bars move from them, the more the reviews tell you.</p>
+        <div class="keyrow"><span><span class="sw" style="background:var(--bb)"></span>Blockbuster</span><span><span class="sw" style="background:var(--s)"></span>Success</span><span><span class="sw" style="background:var(--f)"></span>Flop</span><span style="margin-left:auto">Investors' EV if go (Jun 2015)</span></div>
+        <div id="posts"></div>
+      </div>
+      <div class="panel">
+        <h2>How reviews depend on Broadway fate</h2>
+        <p class="note">P(review | eventual outcome). At θ = 0 every row is 25 / 50 / 25; at θ = 2 each review names the outcome exactly.</p>
+        <div style="overflow-x:auto"><table class="lik" id="lik"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Scenario payoffs reproduce the Exhibit 8 free cash flow models and the Summary sheets of the courseware: at θ = 1 and 7%, going direct is −$1.6M, The Public with optimal abandonment is +$2.9M, and the abandonment option is worth $5.7M. "The Public's cut" is the change in investors' NPV from the Public's 1.5% royalty and 6% profit share (it also includes paying $1.9M six months earlier). Party values discount the expected gross adjusted box-office revenue (royalties) and the show's free cash flow after the upfront investment (profit shares) at the same rate, with a terminal value at the year-8 growth rate. Producers: 3% royalty plus 42% (45% direct) of free cash flow. Creative team: Miranda, Kail, Blankenbuehler, Lacamoire, Tazewell/Binkley/Steinberg, Chernow and Seller's 5% creative share. Information quality is varied by blending P(review | outcome) from uninformative (θ = 0) to the case (θ = 1) to fully revealing (θ = 2), holding the 6 / 24 / 70 prior fixed.
+  </footer>
+</div>
+
+<script>
+(function(){
+// ---------- Workbook data ($000; index 0 = June 2015) ----------
+// inv: investors' share of expected FCF (row 48); erev: expected gross adjusted box office (row 17 x survival);
+// sfcf: show expected FCF (row 47). Terminal growth g from year 8.
+const D={
+  NPBB:{inv:[-12500,12443.7047,8220.352,24699.7527,26042.3297,24303.836,21410.0703,18999.2964,16859.9756],
+        erev:[0,67004.303,70019.497,73170.374,76463.041,69516.374,61688.83,54742.668,48578.643],
+        sfcf:[-12500,27652.677,18267.449,54888.339,57871.844,54008.525,47577.934,42220.659,37466.613],g:-0.1126},
+  NPS:{inv:[-12500,2468.0937,1395.0306,906.1131,579.9094,366.7942,195.757,109.8197,61.6088],
+        erev:[0,42231.638,44132.061,25364.902,14578.478,8378.98,4700.608,2637.041,1479.38],
+        sfcf:[-12500,5484.653,3100.068,2013.585,1288.687,815.098,435.016,244.044,136.909],g:-0.439},
+  PBB:{inv:[-10600,11339.7418,7385.5987,22199.1494,23413.7933,21872.2721,19262.7774,17093.7887,15169.0281],
+        erev:[0,67004.303,70019.497,73170.374,76463.041,69516.374,61688.83,54742.668,48578.643],
+        sfcf:[-10600,26999.385,17584.759,52855.118,55747.127,52076.838,45863.756,40699.497,36116.733],g:-0.1126},
+  PS:{inv:[-10600,2130.6155,1121.3077,741.8363,481.5499,308.0294,163.4575,91.6997,51.4435],
+        erev:[0,42231.638,44132.061,25364.902,14578.478,8378.98,4700.608,2637.041,1479.38],
+        sfcf:[-10600,5072.894,2669.78,1766.277,1146.547,733.403,389.185,218.333,122.485],g:-0.439}
+};
+function pv(arr,g,r,from){let v=0;for(let t=from;t<arr.length;t++)v+=arr[t]/Math.pow(1+r,t);return v+arr[8]*(1+g)/(r-g)/Math.pow(1+r,8);}
+function npv(k,r){return pv(D[k].inv,D[k].g,r,0);}
+// value to each party in one scenario, June 2015
+function parties(k,r,pub){
+  const R=pv(D[k].erev,D[k].g,r,1), F=pv(D[k].sfcf,D[k].g,r,1), sh=pub?0.42:0.45;
+  return {inv:npv(k,r), prod:0.03*R+sh*F, pub:pub?0.015*R+0.06*F:0, crea:0.145*R+0.10*F};
+}
+const PRIOR=[.06,.24,.70], Q=[.25,.50,.25];
+const POST1=[[.20,.41,.39],[.02,.20,.78],[0,.15,.85]];
+const L1=[0,1,2].map(t=>[0,1,2].map(s=>Q[s]*POST1[s][t]/PRIOR[t]));
+const L0=[0,1,2].map(()=>Q.slice()), L2=[[1,0,0],[0,1,0],[0,0,1]];
+const TYPES=["Blockbuster","Success","Flop"], TCOL=["var(--bb)","var(--s)","var(--f)"], REV=["Rave","Good","Poor"];
+const COST=1900;
+
+function lik(th){const A=th<=1?L0:L1,B=th<=1?L1:L2,w=th<=1?th:th-1;return [0,1,2].map(t=>[0,1,2].map(s=>(1-w)*A[t][s]+w*B[t][s]));}
+function solve(th,r){
+  const L=lik(th), DF=1/Math.pow(1+r,.5);
+  const VP=[npv("PBB",r),npv("PS",r),-10600], VD=[npv("NPBB",r),npv("NPS",r),-12500];
+  const rev=[0,1,2].map(s=>{const p=PRIOR.reduce((a,pt,t)=>a+pt*L[t][s],0);
+    const post=p>1e-12?PRIOR.map((pt,t)=>pt*L[t][s]/p):PRIOR.slice();
+    const ev=post.reduce((a,q,t)=>a+q*VP[t],0);return {p,post,ev,go:ev>0};});
+  const mechJ=PRIOR.reduce((a,p,t)=>a+p*VP[t],0);
+  const optJ=rev.reduce((a,x)=>a+x.p*Math.max(x.ev,0),0);
+  const directJ=PRIOR.reduce((a,p,t)=>a+p*VD[t],0);
+  const S={L,VP,VD,DF,rev,optJ,directJ,mech:mechJ*DF-COST,opt:optJ*DF-COST,direct:directJ*DF,noinfo:Math.max(mechJ,0)*DF-COST};
+  // parties
+  const pD=[parties("NPBB",r,false),parties("NPS",r,false)], pP=[parties("PBB",r,true),parties("PS",r,true)];
+  const keys=["prod","pub","crea"];
+  S.partyDirect={inv:S.direct}; S.partyPub={inv:S.opt};
+  keys.forEach(k=>{S.partyDirect[k]=DF*(PRIOR[0]*pD[0][k]+PRIOR[1]*pD[1][k]);
+    S.partyPub[k]=DF*rev.reduce((a,x)=>a+(x.go?x.p*(x.post[0]*pP[0][k]+x.post[1]*pP[1][k]):0),0);});
+  S.prodIfGo=rev.map(x=>x.post[0]*pP[0].prod+x.post[1]*pP[1].prod);
+  return S;
+}
+
+const M=x=>{const v=x/1000;const a=Math.abs(v);const s=a<0.05?"0.0":(a>=100?a.toFixed(0):a.toFixed(1));return (v<-0.05?"−":"")+"$"+s+"M";};
+const P=x=>(x*100).toFixed(x>0&&x<0.1?1:0)+"%";
+const $=id=>document.getElementById(id);
+let state={th:1,r:.07,style:"flow",big:false};
+const K=()=>state.big?1.3:1;
+
+// ---------- tree ----------
+function layout(k){
+  const rowH=28*k, top=48*k;
+  const X0=82,X1=292,X2=505,X3=665,XL=850,W=1000;
+  let rows=[],y=top; const gap={0:16,3:16,7:10,11:10};
+  for(let i=0;i<16;i++){rows.push(y);y+=rowH+(gap[i]||0)*k;}
+  const yPass=rows[0], yD=[rows[1],rows[2],rows[3]], yDc=rows[2];
+  const rv=[0,1,2].map(s=>{const b=4+s*4;return {go:[rows[b],rows[b+1],rows[b+2]],goC:rows[b+1],close:rows[b+3],dec:(rows[b+1]+rows[b+3])/2};});
+  const yPc=(rv[0].dec+rv[2].dec)/2;
+  return {X0,X1,X2,X3,XL,W,H:y+6*k,yPass,yD,yDc,rv,yPc,yRoot:(yPass+yPc)/2-40*k};
+}
+function drawTree(S){
+  const k=K(), G=layout(k), svg=$("tree"), fs=n=>(n*k).toFixed(1);
+  svg.setAttribute("viewBox",`0 0 ${G.W} ${G.H}`);
+  const choices=[0,S.direct,S.opt], best=choices.indexOf(Math.max(...choices));
+  let o=[];
+  const hdr=(x,t,a)=>o.push(`<text x="${x}" y="${16*k}" font-size="${fs(11)}" letter-spacing="1.2" fill="var(--muted)" font-weight="600" text-anchor="${a||"start"}">${t}</text>`);
+  hdr(G.X0,"DEC 2014","middle");hdr(G.X1,"REVIEWS","middle");hdr(G.X2,"JUNE 2015","middle");hdr(G.X3,"BROADWAY FATE","middle");hdr(G.XL+8,"INVESTORS' NPV");
+  const leafTxt=(x,y,v,on)=>o.push(`<text x="${x+16}" y="${y+4.5*k}" font-size="${fs(13)}" class="num" font-weight="${on?600:400}" fill="${on?(v>0?"var(--accent)":v<0?"var(--f)":"var(--ink)"):"var(--muted)"}" opacity="${on?1:.6}">${M(v)}</text>`);
+  const rootVal=Math.max(...choices);
+  if(state.style==="flow") flowTree(S,G,k,best,o,leafTxt); else classicTree(S,G,k,best,o,leafTxt);
+  o.push(`<text x="${G.X0-14}" y="${G.yRoot+4.5*k}" text-anchor="end" font-size="${fs(14)}" class="num" font-weight="700" fill="var(--accent)">${M(rootVal)}</text>`);
+  svg.innerHTML=o.join("");
+}
+function pill(o,x,y,txt,on,k){
+  const w=(txt.length*7.6+12)*k, h=18*k;
+  o.push(`<g><rect x="${x-w/2}" y="${y-h/2}" width="${w}" height="${h}" rx="${h/2}" fill="${on?"var(--accent)":"var(--surface)"}" stroke="${on?"var(--accent)":"var(--rule)"}"/>`+
+    `<text x="${x}" y="${y+4.3*k}" text-anchor="middle" font-size="${(12.5*k).toFixed(1)}" class="num" font-weight="600" fill="${on?"var(--surface)":"var(--muted)"}">${txt}</text></g>`);
+}
+function flowTree(S,G,k,best,o,leafTxt){
+  const Wm=32*k, fs=n=>(n*k).toFixed(1);
+  const ribbon=(x1,yTop,w,x2,y2,fill,op,flow)=>{
+    const c=(x2-x1)*.5;
+    o.push(`<path d="M${x1},${yTop} C${x1+c},${yTop} ${x2-c},${y2-w/2} ${x2},${y2-w/2} L${x2},${y2+w/2} C${x2-c},${y2+w/2} ${x1+c},${yTop+w} ${x1},${yTop+w} Z" fill="${fill}" opacity="${op}"/>`);
+    if(flow&&w>3) o.push(`<path class="flowline" d="M${x1},${yTop+w/2} C${x1+c},${yTop+w/2} ${x2-c},${y2} ${x2},${y2}" fill="none" stroke="var(--surface)" stroke-width="${Math.min(2.2,w/3)}" stroke-dasharray="3 9" opacity=".75"/>`);
+  };
+  const ghost=(x1,y1,x2,y2)=>{const c=(x2-x1)*.5;o.push(`<path d="M${x1},${y1} C${x1+c},${y1} ${x2-c},${y2} ${x2},${y2}" fill="none" stroke="var(--muted)" stroke-width="1.3" stroke-dasharray="4 4" opacity=".55"/>`);};
+  const lab=(x,y,html,anchor,col,w)=>o.push(`<text x="${x}" y="${y}" text-anchor="${anchor||"end"}" font-size="${fs(12.5)}" class="halo" fill="${col||"var(--ink)"}" font-weight="${w||500}">${html}</text>`);
+  // fan: parent at (x,y), children [{x,y,reach,fill,op,label}]
+  const fan=(x,y,kids)=>{
+    const tot=kids.reduce((a,c)=>a+(c.reach>0?Math.max(c.reach*Wm,1.5):0),0); let yy=y-tot/2;
+    kids.forEach(c=>{ if(c.reach>0){const w=Math.max(c.reach*Wm,1.5);ribbon(x,yy,w,c.x,c.y,c.fill,c.op,true);yy+=w;} else ghost(x,y,c.x,c.y);});
+  };
+  const pubOn=best===2, dirOn=best===1;
+  // root
+  fan(G.X0,G.yRoot,[
+    {x:G.XL,y:G.yPass,reach:best===0?1:0,fill:"var(--muted)",op:.3},
+    {x:G.X1,y:G.yDc,reach:dirOn?1:0,fill:"var(--direct)",op:.35},
+    {x:G.X1,y:G.yPc,reach:pubOn?1:0,fill:"var(--accent)",op:.3}]);
+  // direct
+  fan(G.X1,G.yDc,[0,1,2].map(t=>({x:G.XL,y:G.yD[t],reach:dirOn?PRIOR[t]:0,fill:TCOL[t],op:.55})));
+  // public
+  fan(G.X1,G.yPc,S.rev.map((R,s)=>({x:G.X2,y:G.rv[s].dec,reach:pubOn?R.p:0,fill:"var(--accent)",op:.3})));
+  S.rev.forEach((R,s)=>{const g=G.rv[s];
+    fan(G.X2,g.dec,[{x:G.X3,y:g.goC,reach:pubOn&&R.go?R.p:0,fill:"var(--accent)",op:.3},{x:G.XL,y:g.close,reach:pubOn&&!R.go?R.p:0,fill:"var(--muted)",op:.3}]);
+    fan(G.X3,g.goC,[0,1,2].map(t=>({x:G.XL,y:g.go[t],reach:pubOn&&R.go?R.p*R.post[t]:0,fill:TCOL[t],op:.55})));
+  });
+  // labels
+  lab(G.XL-10,G.yPass+4*k,"Pass");
+  lab(G.X1-22,G.yDc-12*k,"Direct to Broadway",null,dirOn?"var(--ink)":"var(--muted)");
+  lab(G.X1-22,G.yPc-20*k,`The Public <tspan class="num">−$1.9M</tspan>`,null,pubOn?"var(--ink)":"var(--muted)",600);
+  [0,1,2].forEach(t=>lab(G.XL-10,G.yD[t]+4*k,`${TYPES[t]} <tspan class="num">${P(PRIOR[t])}</tspan>`,null,dirOn?"var(--ink)":"var(--muted)"));
+  S.rev.forEach((R,s)=>{const g=G.rv[s];
+    lab(G.X2-18,g.dec+4*k,`${REV[s]} <tspan class="num">${P(R.p)}</tspan>`,null,pubOn?"var(--ink)":"var(--muted)",600);
+    lab(G.X3-18,g.goC+4*k,"Go",null,R.go?"var(--ink)":"var(--muted)");
+    lab(G.XL-10,g.close+4*k,R.go?"Close":"Close · walk away",null,R.go?"var(--muted)":"var(--ink)",R.go?400:600);
+    [0,1,2].forEach(t=>lab(G.XL-10,g.go[t]+4*k,`${TYPES[t]} <tspan class="num">${P(R.post[t])}</tspan>`,null,R.go?"var(--ink)":"var(--muted)"));
+  });
+  // nodes + leaves
+  const leafCap=(y,on,col)=>o.push(`<rect x="${G.XL}" y="${y-7*k}" width="${5*k}" height="${14*k}" rx="2" fill="${col}" opacity="${on?1:.4}"/>`);
+  leafCap(G.yPass,best===0,"var(--muted)");leafTxt(G.XL,G.yPass,0,best===0);
+  [0,1,2].forEach(t=>{leafCap(G.yD[t],dirOn,TCOL[t]);leafTxt(G.XL,G.yD[t],S.VD[t],dirOn);});
+  S.rev.forEach((R,s)=>{const g=G.rv[s];
+    [0,1,2].forEach(t=>{leafCap(g.go[t],pubOn&&R.go,TCOL[t]);leafTxt(G.XL,g.go[t],S.VP[t],pubOn&&R.go);});
+    leafCap(g.close,pubOn&&!R.go,"var(--muted)");leafTxt(G.XL,g.close,0,pubOn&&!R.go);
+    o.push(`<circle cx="${G.X3}" cy="${g.goC}" r="${6*k}" fill="var(--surface)" stroke="${pubOn&&R.go?"var(--accent)":"var(--muted)"}" stroke-width="2"/>`);
+    pill(o,G.X3,g.goC-20*k,M(R.ev),false,k);
+    o.push(`<rect x="${G.X2-7*k}" y="${g.dec-7*k}" width="${14*k}" height="${14*k}" rx="3" fill="var(--surface)" stroke="${pubOn?"var(--accent)":"var(--muted)"}" stroke-width="2"/>`);
+    pill(o,G.X2,g.dec-22*k,M(Math.max(R.ev,0)),pubOn,k);
+  });
+  o.push(`<circle cx="${G.X1}" cy="${G.yDc}" r="${7*k}" fill="var(--surface)" stroke="${dirOn?"var(--direct)":"var(--muted)"}" stroke-width="2"/>`);
+  pill(o,G.X1,G.yDc+22*k,M(S.direct),dirOn,k);
+  o.push(`<circle cx="${G.X1}" cy="${G.yPc}" r="${7*k}" fill="var(--surface)" stroke="${pubOn?"var(--accent)":"var(--muted)"}" stroke-width="2"/>`);
+  pill(o,G.X1,G.yPc+30*k,M(S.opt),pubOn,k);
+  o.push(`<text x="${G.X1}" y="${G.yPc+50*k}" text-anchor="middle" font-size="${fs(11)}" fill="var(--muted)">after $1.9M trial</text>`);
+  o.push(`<rect x="${G.X0-8*k}" y="${G.yRoot-8*k}" width="${16*k}" height="${16*k}" rx="3" fill="var(--accent)"/>`);
+}
+function classicTree(S,G,k,best,o,leafTxt){
+  const fs=n=>(n*k).toFixed(1); const pubOn=best===2, dirOn=best===1;
+  const elbow=(x1,y1,x2,y2,on,pr,label)=>{const mid=x1+16;
+    o.push(`<path d="M${x1},${y1} H${mid} V${y2} H${x2}" fill="none" stroke="${on?"var(--accent)":pr?"var(--muted)":"var(--ink)"}" stroke-width="${on?3:1.4}" opacity="${on?1:pr?.35:.5}"/>`);
+    if(label)o.push(`<text x="${mid+6}" y="${y2-6*k}" font-size="${fs(12.5)}" fill="var(--ink)">${label}</text>`);
+    if(pr){const cx=(mid+x2)/2+30;o.push(`<path d="M${cx-4},${y2+5} l5,-10 M${cx+2},${y2+5} l5,-10" stroke="var(--muted)" stroke-width="1.6" fill="none"/>`);}};
+  const val=(x,y,v,on,below)=>o.push(`<text x="${below?x:x-11*k}" y="${below?y+24*k:y-8*k}" text-anchor="${below?"middle":"end"}" font-size="${fs(12.5)}" class="num" font-weight="600" fill="${on?"var(--accent)":"var(--muted)"}">${M(v)}</text>`);
+  const sq=(x,y,on)=>o.push(`<rect x="${x-7*k}" y="${y-7*k}" width="${14*k}" height="${14*k}" fill="var(--surface)" stroke="${on?"var(--accent)":"var(--ink)"}" stroke-width="2"/>`);
+  const ci=(x,y,on)=>o.push(`<circle cx="${x}" cy="${y}" r="${7*k}" fill="var(--surface)" stroke="${on?"var(--accent)":"var(--ink)"}" stroke-width="2"/>`);
+  const leaf=(y,v,col,on)=>{o.push(`<path d="M${G.XL},${y} l${9*k},${-6*k} v${12*k} z" fill="${col||"var(--muted)"}" opacity="${on?1:.45}"/>`);leafTxt(G.XL,y,v,on);};
+  elbow(G.X0+7,G.yRoot,G.XL,G.yPass,best===0,best!==0,"Pass");
+  elbow(G.X0+7,G.yRoot,G.X1-7,G.yDc,dirOn,!dirOn,"Direct to Broadway");
+  elbow(G.X0+7,G.yRoot,G.X1-7,G.yPc,pubOn,!pubOn,`The Public <tspan class="num">−$1.9M</tspan>`);
+  [0,1,2].forEach(t=>{elbow(G.X1+7,G.yDc,G.XL,G.yD[t],dirOn,false,`<tspan fill="${TCOL[t]}">●</tspan> ${TYPES[t]} <tspan class="num" fill="var(--muted)">${P(PRIOR[t])}</tspan>`);leaf(G.yD[t],S.VD[t],TCOL[t],dirOn);});
+  S.rev.forEach((R,s)=>{const g=G.rv[s];
+    elbow(G.X1+7,G.yPc,G.X2-7,g.dec,pubOn,false,`${REV[s]} <tspan class="num" fill="var(--muted)">${P(R.p)}</tspan>`);
+    elbow(G.X2+7,g.dec,G.X3-7,g.goC,pubOn&&R.go,!R.go,"Go");
+    elbow(G.X2+7,g.dec,G.XL,g.close,pubOn&&!R.go,R.go,"Close");
+    [0,1,2].forEach(t=>{elbow(G.X3+7,g.goC,G.XL,g.go[t],pubOn&&R.go,false,`<tspan fill="${TCOL[t]}">●</tspan> ${TYPES[t]} <tspan class="num" fill="var(--muted)">${P(R.post[t])}</tspan>`);leaf(g.go[t],S.VP[t],TCOL[t],pubOn&&R.go);});
+    leaf(g.close,0,null,pubOn&&!R.go);
+    ci(G.X3,g.goC,pubOn&&R.go);val(G.X3,g.goC,R.ev,false);
+    sq(G.X2,g.dec,pubOn);val(G.X2,g.dec,Math.max(R.ev,0),pubOn);
+  });
+  ci(G.X1,G.yDc,dirOn);val(G.X1,G.yDc,S.direct,dirOn,true);
+  ci(G.X1,G.yPc,pubOn);
+  o.push(`<text x="${G.X1}" y="${G.yPc+24*k}" text-anchor="middle" font-size="${fs(12.5)}" class="num" font-weight="600" fill="${pubOn?"var(--accent)":"var(--muted)"}">${M(S.opt)}</text>`);
+  sq(G.X0,G.yRoot,true);
+}
+
+// ---------- waterfall ----------
+function drawWaterfall(S){
+  const k=K(), svg=$("wf"), W=560, H=330*Math.min(k,1.15), ml=10, mr=10, mt=28*k, mb=58*k, fs=n=>(n*k).toFixed(1);
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const cut=S.mech-S.direct, stop=S.noinfo-S.mech, info=S.opt-S.noinfo;
+  const steps=[
+    {lab:"Direct to Broadway",v:S.direct,total:true,col:"var(--direct)"},
+    {lab:"The Public's cut",v:cut,col:"var(--pub)"},
+    {lab:"Option to stop, no news",v:stop,col:"var(--accent)"},
+    {lab:"What the reviews add",v:info,col:"var(--accent)"},
+    {lab:"The Public, abandon optimally",v:S.opt,total:true,col:"var(--accent)"}];
+  let run=0; steps.forEach(s=>{if(s.total){s.a=0;s.b=s.v;run=s.v;}else{s.a=run;s.b=run+s.v;run=s.b;}});
+  const vals=steps.flatMap(s=>[s.a,s.b,0]); let lo=Math.min(...vals),hi=Math.max(...vals);
+  const pad=(hi-lo)*.12; lo-=pad; hi+=pad;
+  const Y=v=>mt+(hi-v)/(hi-lo)*(H-mt-mb), bw=(W-ml-mr)/steps.length;
+  let o=[`<line x1="${ml}" x2="${W-mr}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--ink)" stroke-width="1" opacity=".5"/>`];
+  steps.forEach((s,i)=>{
+    const x=ml+i*bw+bw*.16, w=bw*.68, y1=Y(Math.max(s.a,s.b)), y2=Y(Math.min(s.a,s.b)), h=Math.max(y2-y1,1.5);
+    o.push(`<rect x="${x}" y="${y1}" width="${w}" height="${h}" rx="3" fill="${s.col}" opacity="${s.total?1:.75}"/>`);
+    if(!s.total) o.push(`<rect x="${x}" y="${y1}" width="${w}" height="${h}" rx="3" fill="none" stroke="${s.col}" stroke-dasharray="${s.v<0?"3 3":"0"}"/>`);
+    if(i<steps.length-1){const nx=ml+(i+1)*bw+bw*.16;o.push(`<line x1="${x+w}" x2="${nx}" y1="${Y(s.b)}" y2="${Y(s.b)}" stroke="var(--muted)" stroke-dasharray="2 3"/>`);}
+    const top=s.v>=0?y1-7*k:y2+16*k;
+    o.push(`<text x="${x+w/2}" y="${top}" text-anchor="middle" font-size="${fs(14)}" class="num" font-weight="700" fill="var(--ink)">${(s.total?"":(s.v>=0?"+":""))}${M(s.v)}</text>`);
+    const words=s.lab.split(" "), lines=[]; let cur="";
+    words.forEach(wd=>{if((cur+" "+wd).trim().length>(k>1?11:13)){lines.push(cur.trim());cur=wd;}else cur+=" "+wd;}); lines.push(cur.trim());
+    lines.forEach((ln,j)=>o.push(`<text x="${x+w/2}" y="${H-mb+18*k+j*14*k}" text-anchor="middle" font-size="${fs(11.5)}" fill="var(--muted)" font-weight="${s.total?700:500}">${ln}</text>`));
+  });
+  svg.innerHTML=o.join("");
+}
+
+// ---------- who gets what ----------
+function drawWho(S){
+  const k=K(), svg=$("who"), rows=[["inv","Outside investors","var(--accent)"],["prod","Producers","var(--prod)"],["pub","The Public","var(--pub)"],["crea","Creative team","var(--crea)"]];
+  const rh=46*k, mt=26*k, W=560, lw=140*k, H=mt+rows.length*rh+8, fs=n=>(n*k).toFixed(1);
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const all=rows.flatMap(r=>[S.partyDirect[r[0]],S.partyPub[r[0]],0]); let lo=Math.min(...all), hi=Math.max(...all); if(lo<0) lo-= (hi-lo)*0.16;
+  const x0=lw+8, x1=W-70*k, X=v=>x0+(v-lo)/(hi-lo)*(x1-x0);
+  let o=[`<line x1="${X(0)}" x2="${X(0)}" y1="${mt-6}" y2="${H-4}" stroke="var(--ink)" opacity=".5"/>`];
+  o.push(`<g font-size="${fs(11.5)}" fill="var(--muted)"><rect x="${x0}" y="${4*k}" width="${10*k}" height="${10*k}" rx="2" fill="var(--direct)"/><text x="${x0+15*k}" y="${13*k}">Direct to Broadway</text>`+
+    `<rect x="${x0+150*k}" y="${4*k}" width="${10*k}" height="${10*k}" rx="2" fill="var(--accent)"/><text x="${x0+165*k}" y="${13*k}">The Public, abandon optimally</text></g>`);
+  rows.forEach(([key,name,col],i)=>{
+    const y=mt+i*rh, bh=15*k;
+    o.push(`<text x="0" y="${y+rh/2}" font-size="${fs(13)}" font-weight="600" fill="var(--ink)"><tspan fill="${col}">■</tspan> ${name}</text>`);
+    [[S.partyDirect[key],"var(--direct)",y+rh/2-bh-1],[S.partyPub[key],"var(--accent)",y+rh/2+1]].forEach(([v,c,by])=>{
+      const a=X(Math.min(0,v)), b=X(Math.max(0,v));
+      o.push(`<rect x="${a}" y="${by}" width="${Math.max(b-a,1)}" height="${bh}" rx="2" fill="${c}"/>`);
+      const tx=v>=0?b+5:a-5; o.push(`<text x="${tx}" y="${by+bh-3*k}" text-anchor="${v>=0?"start":"end"}" font-size="${fs(12)}" class="num" font-weight="600" fill="var(--ink)">${M(v)}</text>`);
+    });
+  });
+  svg.innerHTML=o.join("");
+  const lost=S.rev.filter(R=>!R.go&&R.p>1e-6);
+  $("who-note").innerHTML= lost.length? `Producers never want to walk away: they put in no capital, so they would still take ${lost.map(R=>`${M(S.prodIfGo[S.rev.indexOf(R)])} after ${REV[S.rev.indexOf(R)]} reviews`).join(" and ")} if the show went on. The abandonment option is the investors' protection, and producers bear part of its cost.`
+    :"With no review bad enough to abandon on, investors and producers want the same thing.";
+}
+
+// ---------- VOI chart ----------
+function drawChart(r){
+  const k=K(), svg=$("chart"), W=600,H=340*Math.min(k,1.15),ml=62*k,mr=120*k,mt=18,mb=52*k, fs=n=>(n*k).toFixed(1);
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const N=200,pts=[];for(let i=0;i<=N;i++){const th=2*i/N,S=solve(th,r);pts.push({th,opt:S.opt,direct:S.direct,base:S.noinfo});}
+  const all=pts.flatMap(p=>[p.opt,p.direct,p.base,0]);let lo=Math.min(...all),hi=Math.max(...all);
+  const step=hi-lo>12000?2000:1000; lo=Math.floor(lo/step)*step; hi=Math.ceil(hi/step)*step;
+  const X=th=>ml+th/2*(W-ml-mr), Y=v=>mt+(hi-v)/(hi-lo)*(H-mt-mb);
+  let o=[];
+  for(let v=lo;v<=hi+1;v+=step){o.push(`<line x1="${ml}" x2="${W-mr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--rule)" stroke-width="${v===0?1.6:1}"/>`);
+    o.push(`<text x="${ml-8}" y="${Y(v)+4}" text-anchor="end" font-size="${fs(11.5)}" class="num" fill="var(--muted)">${M(v)}</text>`);}
+  [[0,"No info"],[1,"Case"],[2,"Fully revealing"]].forEach(([t,l])=>o.push(`<text x="${X(t)}" y="${H-mb+18*k}" text-anchor="${t===0?"start":t===2?"end":"middle"}" font-size="${fs(12)}" fill="var(--muted)">${l}</text>`));
+  o.push(`<text x="${(ml+W-mr)/2}" y="${H-8}" text-anchor="middle" font-size="${fs(12)}" fill="var(--muted)">How revealing the reviews are (θ)</text>`);
+  const line=key=>pts.map((p,i)=>(i?"L":"M")+X(p.th).toFixed(1)+","+Y(p[key]).toFixed(1)).join("");
+  o.push(`<path d="${line("opt")}${pts.slice().reverse().map(p=>"L"+X(p.th).toFixed(1)+","+Y(p.base).toFixed(1)).join("")}Z" fill="var(--accent-soft)"/>`);
+  o.push(`<line x1="${X(1)}" x2="${X(1)}" y1="${mt}" y2="${H-mb}" stroke="var(--rule)" stroke-dasharray="3 4"/>`);
+  o.push(`<path d="${line("base")}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="2 4"/>`);
+  o.push(`<path d="${line("direct")}" fill="none" stroke="var(--direct)" stroke-width="2.4" stroke-dasharray="7 5"/>`);
+  o.push(`<path d="${line("opt")}" fill="none" stroke="var(--accent)" stroke-width="3.2"/>`);
+  const end=pts[N]; let labs=[["opt","The Public,|abandon optimally","var(--accent)"],["direct","Direct to|Broadway","var(--direct)"],["base","Trial that|tells you nothing","var(--muted)"]].map(([kk,t,c])=>({y:Y(end[kk]),t,c}));
+  labs.sort((a,b)=>a.y-b.y);for(let i=1;i<labs.length;i++)if(labs[i].y-labs[i-1].y<30*k)labs[i].y=labs[i-1].y+30*k;
+  labs.forEach(l=>l.t.split("|").forEach((p,j)=>o.push(`<text x="${W-mr+8}" y="${l.y-2+j*13*k}" font-size="${fs(11.5)}" font-weight="600" fill="${l.c}">${p}</text>`)));
+  const S=solve(state.th,r), xm=X(state.th);
+  o.push(`<line x1="${xm}" x2="${xm}" y1="${mt}" y2="${H-mb}" stroke="var(--ink)" stroke-width="1.2"/>`);
+  [["opt","var(--accent)"],["direct","var(--direct)"],["noinfo","var(--muted)"]].forEach(([kk,c])=>o.push(`<circle cx="${xm}" cy="${Y(S[kk])}" r="${4.5*k}" fill="${c}" stroke="var(--surface)" stroke-width="1.5"/>`));
+  const gy=(Y(S.opt)+Y(S.noinfo))/2, right=state.th<1.4;
+  if(Math.abs(Y(S.opt)-Y(S.noinfo))>24*k)o.push(`<text x="${xm+(right?8:-8)}" y="${gy+4}" text-anchor="${right?"start":"end"}" font-size="${fs(12)}" font-weight="700" class="halo" fill="var(--accent)">reviews add ${M(S.opt-S.noinfo)}</text>`);
+  svg.innerHTML=o.join("");
+}
+
+function drawPosts(S){
+  $("posts").innerHTML=S.rev.map((R,s)=>`<div class="post-row"><div class="nm">${REV[s]}<small>p = ${P(R.p)}</small></div>
+    <div class="bar">${R.post.map((q,t)=>`<i style="width:${q*100}%;background:${TCOL[t]}"></i>`).join("")}<span class="tick" style="left:6%"></span><span class="tick" style="left:30%"></span></div>
+    <div class="ev">${M(R.ev)}</div><div class="chip ${R.go?"go":"close"}">${R.go?"Go":"Close"}</div></div>`).join("");
+  $("lik").innerHTML=`<tr><th></th>${REV.map(r=>`<th scope="col">${r}</th>`).join("")}</tr>`+[0,1,2].map(t=>`<tr><th scope="row"><span class="sw" style="background:${TCOL[t]}"></span>${TYPES[t]}</th>${[0,1,2].map(s=>{const v=S.L[t][s];return `<td style="background:color-mix(in srgb,var(--accent) ${Math.round(v*70)}%,transparent);color:${v>.55?"var(--surface)":"var(--ink)"}">${P(v)}</td>`;}).join("")}</tr>`).join("");
+}
+
+function render(){
+  const S=solve(state.th,state.r);
+  $("theta-val").textContent="θ = "+state.th.toFixed(2);
+  $("theta-desc").textContent=state.th<0.02?"· reviews say nothing":state.th<0.98?"· weaker than the case":state.th<=1.02?"· the case's reviews":state.th<1.98?"· sharper than the case":"· reviews reveal the outcome";
+  $("tree-note").textContent= state.style==="flow"
+    ? "Ribbon width is the probability of reaching each branch under the best plan. Pills show rolled-back value. Dashed lines are branches not taken."
+    : "Squares are decisions, circles are chance. Values roll back from the leaves; slashes mark pruned branches.";
+  $("legend").innerHTML= `<span><span class="sw" style="background:var(--bb)"></span>Blockbuster</span><span><span class="sw" style="background:var(--s)"></span>Success</span><span><span class="sw" style="background:var(--f)"></span>Flop</span><span>Leaves: investors' NPV in June 2015, including the Broadway investment</span>`;
+  const bestV=Math.max(0,S.direct,S.opt);
+  let v= bestV<=0?`<b>Pass.</b> Every path has negative NPV for outside investors (best is ${M(Math.max(S.direct,S.opt))}).`
+    : bestV===S.direct?`<b>Go direct.</b> Direct to Broadway (${M(S.direct)}) beats the trial at The Public (${M(S.opt)}).`
+    : `<b>Stage at The Public, then abandon on weak reviews.</b> Worth ${M(S.opt)} to investors, versus ${M(S.direct)} going direct.`;
+  let be=null;for(let i=0;i<=400;i++){const th=i/200,T=solve(th,state.r);if(T.opt>Math.max(T.direct,0)){be=th;break;}}
+  v+=be===null?" Even fully revealing reviews would not justify the trial at this discount rate.":` The trial pays for itself once θ exceeds ${be.toFixed(2)}.`;
+  $("verdict").innerHTML=v;
+  drawTree(S);drawWaterfall(S);drawWho(S);drawChart(state.r);drawPosts(S);
+}
+
+$("theta").addEventListener("input",e=>{state.th=+e.target.value;render();});
+document.querySelectorAll(".snap button").forEach(b=>b.addEventListener("click",()=>{state.th=+b.dataset.t;$("theta").value=state.th;render();}));
+$("rate").addEventListener("input",e=>{const v=parseFloat(e.target.value);if(v>=1&&v<=20){state.r=v/100;render();}});
+const tog=(a,b,on)=>{$(a).setAttribute("aria-pressed",on);$(b).setAttribute("aria-pressed",!on);};
+$("st-flow").onclick=()=>{state.style="flow";tog("st-flow","st-classic",true);render();};
+$("st-classic").onclick=()=>{state.style="classic";tog("st-flow","st-classic",false);render();};
+const setBig=b=>{state.big=b;document.documentElement.classList.toggle("big",b);tog("sz-big","sz-normal",b);render();try{localStorage.setItem("hamBig",b?"1":"0");}catch(e){}};
+$("sz-big").onclick=()=>setBig(true);$("sz-normal").onclick=()=>setBig(false);
+let saved=false;try{saved=localStorage.getItem("hamBig")==="1";}catch(e){}
+if(saved)setBig(true);else render();
+})();
+</script>
+</body>
+</html>
