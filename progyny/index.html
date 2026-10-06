@@ -20,6 +20,8 @@
   --grow: #B5751A;
   --warn: #A8331F;
   --warn-bg: #FBEDEA;
+  --good: #2F9E5B;
+  --bad: #D2483A;
   --f-display: "Source Serif 4", Georgia, "Times New Roman", serif;
   --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-num: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -27,12 +29,12 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0F151A; --surface: #161F26; --ink: #E5EBEE; --muted: #94A2AB; --rule: #2A3640; --grid: #212C34;
-    --level: #82AADA; --grow: #E3A64A; --warn: #F08B7C; --warn-bg: #2C1B19; color-scheme: dark;
+    --level: #82AADA; --grow: #E3A64A; --warn: #F08B7C; --warn-bg: #2C1B19; --good: #3FBF74; --bad: #F06A5A; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0F151A; --surface: #161F26; --ink: #E5EBEE; --muted: #94A2AB; --rule: #2A3640; --grid: #212C34;
-  --level: #82AADA; --grow: #E3A64A; --warn: #F08B7C; --warn-bg: #2C1B19; color-scheme: dark;
+  --level: #82AADA; --grow: #E3A64A; --warn: #F08B7C; --warn-bg: #2C1B19; --good: #3FBF74; --bad: #F06A5A; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -48,7 +50,8 @@ h1 { font-family: var(--f-display); font-weight: 600; font-size: clamp(28px, 4vw
 input[type=range].lv { accent-color: var(--level); }
 input[type=range].gr { accent-color: var(--grow); }
 .formulas { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 32px; }
-.formulas .formula { border-top: 0; padding-top: 0; }
+.formulas .formula, .formulas .formula:first-of-type { border-top: 0; padding: 12px 14px; border-radius: 8px; background: transparent; transition: background-color .15s; }
+@media (prefers-reduced-motion: reduce) { .formulas .formula { transition: none; } }
 .panel > .hint { margin: 14px 0 0; }
 .panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; min-width: 0; }
 .panel h2 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 0 0 12px; }
@@ -168,11 +171,11 @@ header .lede { max-width: 70ch; }
         </div>
         <div class="ctrl">
           <div class="ctrl-top"><label for="in-cg"><span class="swatch sw-grow"></span>Growing first cash flow<span class="sym">C<sub>G</sub></span></label><span class="val" id="v-cg"></span></div>
-          <input id="in-cg" class="gr" type="range" min="10" max="300" step="5" value="100">
+          <input id="in-cg" class="gr" type="range" min="10" max="300" step="5" value="60">
         </div>
         <div class="ctrl">
           <div class="ctrl-top"><label for="in-g">Growth rate<span class="sym">g</span></label><span class="val" id="v-g"></span></div>
-          <input id="in-g" class="gr" type="range" min="-5" max="15" step="0.25" value="3">
+          <input id="in-g" class="gr" type="range" min="-5" max="15" step="0.25" value="4">
         </div>
         <div class="ctrl">
           <div class="ctrl-top"><label for="in-n">Years shown</label><span class="val" id="v-n"></span></div>
@@ -186,16 +189,16 @@ header .lede { max-width: 70ch; }
       <h2 id="h-val">Value today</h2>
       <div class="ctrl r-ctrl">
         <div class="ctrl-top"><label for="in-r">Discount rate<span class="sym">r</span></label><span class="val" id="v-r"></span></div>
-        <input id="in-r" type="range" min="0.5" max="20" step="0.25" value="8">
+        <input id="in-r" type="range" min="0.5" max="20" step="0.25" value="10">
       </div>
       <div class="formulas">
-        <div class="formula">
+        <div class="formula" id="box-level">
           <div class="f-head"><span class="swatch sw-level"></span>Level perpetuity</div>
           <div class="eq">PV = <i>C</i><sub>L</sub> / <i>r</i></div>
           <div class="sub" id="sub-level"></div>
           <div class="pv level" id="pv-level"></div>
         </div>
-        <div class="formula">
+        <div class="formula" id="box-grow">
           <div class="f-head"><span class="swatch sw-grow"></span>Growing perpetuity</div>
           <div class="eq">PV = <i>C</i><sub>G</sub> / (<i>r</i> − <i>g</i>)</div>
           <div class="sub" id="sub-grow"></div>
@@ -227,7 +230,7 @@ header .lede { max-width: 70ch; }
 
 <script>
 (function () {
-  const st = { CL: 100, CG: 100, r: 0.08, g: 0.03, N: 40, mode: 'cf' };
+  const st = { CL: 100, CG: 60, r: 0.10, g: 0.04, N: 40, mode: 'cf' };
   const $ = id => document.getElementById(id);
   const NS = 'http://www.w3.org/2000/svg';
 
@@ -472,6 +475,18 @@ header .lede { max-width: 70ch; }
     $('sub-grow').textContent = `= ${fmtMoney(st.CG, 0)} / (${fmtDec(st.r)} − ${st.g < 0 ? '(' + fmtDec(st.g) + ')' : fmtDec(st.g)})` + (finiteG ? ` = ${fmtMoney(st.CG, 0)} / ${fmtDec(st.r - st.g)}` : '');
     $('pv-grow').textContent = finiteG ? fmtMoney(PVG, 2) : '∞';
     $('warn').hidden = finiteG;
+    // shade: higher value green, lower red; intensity grows with the ratio of the two values
+    const bl = $('box-level'), bg = $('box-grow');
+    const ratio = finiteG ? Math.max(PVG, PVL) / Math.min(PVG, PVL) : Infinity;
+    if (ratio < 1.0005) { bl.style.background = bg.style.background = 'transparent'; }
+    else {
+      const t = Math.min(1, Math.log(ratio) / Math.log(3));   // full intensity at a 3x gap
+      const pct = (12 + 28 * t).toFixed(1) + '%';
+      const shade = c => `color-mix(in srgb, var(${c}) ${pct}, transparent)`;
+      const growWins = !finiteG || PVG > PVL;
+      bg.style.background = shade(growWins ? '--good' : '--bad');
+      bl.style.background = shade(growWins ? '--bad' : '--good');
+    }
     const c = $('compare');
     if (!finiteG) c.innerHTML = 'Lower <i>g</i> below <i>r</i> to get a finite value.';
     else {
