@@ -77,6 +77,17 @@ table.lik th{font-weight:600;color:var(--muted);font-size:.92em;text-align:cente
 table.lik th[scope=row]{text-align:left}
 table.lik td{font-family:var(--mono);text-align:center;width:4.8em;height:2em;border-radius:4px;font-variant-numeric:tabular-nums}
 .split{display:grid;gap:16px}
+.instr{border:1.5px dashed var(--pub);background:color-mix(in srgb,var(--pub) 5%,var(--surface))}
+table.rn{border-collapse:collapse;font-size:.88em;margin:4px 0 12px;min-width:640px}
+table.rn th,table.rn td{padding:6px 10px;border-bottom:1px solid var(--rule);text-align:right;white-space:nowrap}
+table.rn th{font-size:.85em;color:var(--muted);font-weight:600}
+table.rn th:first-child,table.rn td:first-child{text-align:left}
+table.rn td{font-family:var(--mono);font-variant-numeric:tabular-nums}
+table.rn td:first-child{font-family:var(--body);font-weight:700}
+table.rn tr.hot td{background:color-mix(in srgb,var(--pub) 12%,transparent)}
+.instr-text{display:grid;gap:10px;max-width:92ch}
+.instr-text p{margin:0}
+.instr-text h3{font-size:1em;margin:6px 0 0;font-family:var(--display);font-stretch:85%}
 footer{font-size:.8em;color:var(--muted);max-width:95ch}
 svg text{font-family:var(--body)}
 svg .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
@@ -143,7 +154,7 @@ svg .halo{paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linej
     </div>
     <div class="panel">
       <h2>Who gets what</h2>
-      <p class="note">Expected present value to each party, December 2014, under the investors' best policy after the reviews. Only investors put up capital.</p>
+      <p class="note">Expected present value to each party, December 2014, under the investors' best policy after the reviews. Only investors put up capital. Producers' and creatives' royalties are after 35% tax.</p>
       <svg id="who" class="chart" role="img" aria-label="Value by party, direct versus The Public"></svg>
       <p class="note" id="who-note" style="margin:8px 0 0"></p>
     </div>
@@ -170,8 +181,20 @@ svg .halo{paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linej
     </div>
   </section>
 
+  <section class="panel instr" id="instr" hidden aria-label="Instructor notes">
+    <div class="panel-head">
+      <div>
+        <div class="eyebrow" style="color:var(--pub)">Instructor only · press i to hide</div>
+        <h2>Is the deal renegotiation-proof?</h2>
+      </div>
+    </div>
+    <p class="note">Figures follow the slider and discount rate. "Producers + creatives" is everyone with a claim on the show other than investors and The Public. Values in June 2015 unless noted.</p>
+    <div style="overflow-x:auto"><table class="rn" id="rn"></table></div>
+    <div class="instr-text" id="rn-text"></div>
+  </section>
+
   <footer>
-    Scenario payoffs reproduce the Exhibit 8 free cash flow models and the Summary sheets of the courseware: at θ = 1 and 7%, going direct is −$1.6M, The Public with optimal abandonment is +$2.9M, and the abandonment option is worth $5.7M. "The Public's cut" is the change in investors' NPV from the Public's 1.5% royalty and 6% profit share (it also includes paying $1.9M six months earlier). Party values discount the expected gross adjusted box-office revenue (royalties) and the show's free cash flow after the upfront investment (profit shares) at the same rate, with a terminal value at the year-8 growth rate. Producers: 3% royalty plus 42% (45% direct) of free cash flow. Creative team: Miranda, Kail, Blankenbuehler, Lacamoire, Tazewell/Binkley/Steinberg, Chernow and Seller's 5% creative share. Information quality is varied by blending P(review | outcome) from uninformative (θ = 0) to the case (θ = 1) to fully revealing (θ = 2), holding the 6 / 24 / 70 prior fixed.
+    Scenario payoffs reproduce the Exhibit 8 free cash flow models and the Summary sheets of the courseware: at θ = 1 and 7%, going direct is −$1.6M, The Public with optimal abandonment is +$2.9M, and the abandonment option is worth $5.7M. "The Public's cut" is the change in investors' NPV from the Public's 1.5% royalty and 6% profit share (it also includes paying $1.9M six months earlier). Party values discount the expected gross adjusted box-office revenue (royalties) and the show's free cash flow after the upfront investment (profit shares) at the same rate, with a terminal value at the year-8 growth rate. Producers and creatives pay the same 35% tax on royalties that the show deducts, so royalty changes are pure transfers; The Public, a non-profit, is untaxed. Producers: 3% royalty plus 42% (45% direct) of free cash flow. Creative team: Miranda, Kail, Blankenbuehler, Lacamoire, Tazewell/Binkley/Steinberg, Chernow and Seller's 5% creative share. Information quality is varied by blending P(review | outcome) from uninformative (θ = 0) to the case (θ = 1) to fully revealing (θ = 2), holding the 6 / 24 / 70 prior fixed.
   </footer>
 </div>
 
@@ -197,9 +220,12 @@ const D={
 function pv(arr,g,r,from){let v=0;for(let t=from;t<arr.length;t++)v+=arr[t]/Math.pow(1+r,t);return v+arr[8]*(1+g)/(r-g)/Math.pow(1+r,8);}
 function npv(k,r){return pv(D[k].inv,D[k].g,r,0);}
 // value to each party in one scenario, June 2015
+const TAX=0.35;
 function parties(k,r,pub){
   const R=pv(D[k].erev,D[k].g,r,1), F=pv(D[k].sfcf,D[k].g,r,1), sh=pub?0.42:0.45;
-  return {inv:npv(k,r), prod:0.03*R+sh*F, pub:pub?0.015*R+0.06*F:0, crea:0.145*R+0.10*F};
+  // Royalties are taxed at the 35% EBIT rate in the hands of producers and creatives (symmetric with the show's deduction).
+  // The Public is a non-profit, so its royalty stays pre-tax. Profit shares are already after the show's tax.
+  return {inv:npv(k,r), prod:(1-TAX)*0.03*R+sh*F, pub:pub?0.015*R+0.06*F:0, crea:(1-TAX)*0.145*R+0.10*F};
 }
 const PRIOR=[.06,.24,.70], Q=[.25,.50,.25];
 const POST1=[[.20,.41,.39],[.02,.20,.78],[0,.15,.85]];
@@ -226,6 +252,9 @@ function solve(th,r){
   keys.forEach(k=>{S.partyDirect[k]=DF*(PRIOR[0]*pD[0][k]+PRIOR[1]*pD[1][k]);
     S.partyPub[k]=DF*rev.reduce((a,x)=>a+(x.go?x.p*(x.post[0]*pP[0][k]+x.post[1]*pP[1][k]):0),0);});
   S.prodIfGo=rev.map(x=>x.post[0]*pP[0].prod+x.post[1]*pP[1].prod);
+  S.pcIfGo=rev.map(x=>x.post[0]*(pP[0].prod+pP[0].crea)+x.post[1]*(pP[1].prod+pP[1].crea));
+  S.pubIfGo=rev.map(x=>x.post[0]*pP[0].pub+x.post[1]*pP[1].pub);
+  S.pcDirect=S.partyDirect.prod+S.partyDirect.crea; S.pcPub=S.partyPub.prod+S.partyPub.crea;
   return S;
 }
 
@@ -443,6 +472,28 @@ function drawPosts(S){
   $("lik").innerHTML=`<tr><th></th>${REV.map(r=>`<th scope="col">${r}</th>`).join("")}</tr>`+[0,1,2].map(t=>`<tr><th scope="row"><span class="sw" style="background:${TCOL[t]}"></span>${TYPES[t]}</th>${[0,1,2].map(s=>{const v=S.L[t][s];return `<td style="background:color-mix(in srgb,var(--accent) ${Math.round(v*70)}%,transparent);color:${v>.55?"var(--surface)":"var(--ink)"}">${P(v)}</td>`;}).join("")}</tr>`).join("");
 }
 
+function drawInstr(S){
+  if($("instr").hidden) return;
+  const rows=S.rev.map((R,s)=>{const pc=S.pcIfGo[s], pb=S.pubIfGo[s], joint=R.ev+pc, eff=joint>0, inv=R.go;
+    const need=!inv&&eff&&R.p>1e-6; return {s,R,pc,pb,joint,eff,inv,need,minT:Math.max(-R.ev,0),maxT:pc};});
+  $("rn").innerHTML=`<tr><th>Reviews</th><th>Prob.</th><th>Investors if go</th><th>Prod. + creatives if go</th><th>Joint, ex The Public</th><th>Investors do</th><th>Best for group</th><th>Cash needed from P+C</th><th>Share of $10.6M</th><th>Surplus left</th></tr>`+
+   rows.map(x=>`<tr class="${x.need?"hot":""}"><td>${REV[x.s]}</td><td>${P(x.R.p)}</td><td>${M(x.R.ev)}</td><td>${M(x.pc)}</td><td>${M(x.joint)}</td><td>${x.inv?"Go":"Walk"}</td><td>${x.eff?"Go":"Walk"}</td><td>${x.need?M(x.minT):"—"}</td><td>${x.need?Math.round(x.minT/10600*100)+"%":"—"}</td><td>${x.need?M(x.maxT-x.minT):"—"}</td></tr>`).join("");
+  const gap=rows.filter(x=>x.need);
+  const dNeed=Math.max(S.opt,0)-S.direct, dGain=S.pcDirect-S.pcPub;
+  const g=gap[0];
+  let t=`<h3>Ex post, after the reviews</h3>`;
+  t+= gap.length? `<p>The investors' rule (go only if their own EV is positive) is not efficient after <b>${gap.map(x=>REV[x.s]).join(" and ")}</b> reviews: the show is worth ${M(g.joint)} to investors, producers and creatives together, but ${M(g.R.ev)} to investors alone. Investors bear the whole Flop loss of $10.6M while royalties and profit shares come off the top. A Coasian renegotiation exists: producers and creatives pay investors between ${M(g.minT)} and ${M(g.maxT)} to go ahead. The setup survives renegotiation only if that transfer cannot happen.</p>`
+   : `<p>At this θ the investors' rule matches what is best for the group in every review state, so there is nothing to renegotiate after the reviews.</p>`;
+  if(g) t+=`<h3>Why it essentially holds up</h3>
+   <p><b>It has to be cash.</b> The shortfall comes from the ${P(g.R.post[2])} chance of a Flop, where there are no royalties or profits to give up. The transfer must arrive in June 2015 alongside the Broadway capitalization: ${M(g.minT)}, about ${Math.round(g.minT/10600*100)}% of the $10.6M. Paying in future claims instead means handing investors about ${Math.round(g.minT/g.pc*100)}% of everything producers and creatives expect to earn from the show, which guts the incentives of the people who make it.</p>
+   <p><b>The surplus is thin relative to the transfer.</b> Producers and creatives keep at most ${M(g.maxT-g.minT)} on a ${M(g.minT)} payment. A friction cost of ${Math.round((g.maxT-g.minT)/g.minT*100)}% of the transfer (bargaining, valuation disagreement, risk aversion, cost of raising the cash) wipes it out.</p>
+   <p><b>Many payers, free-riding.</b> The contribution has to come from Miranda, the producers, Kail, Blankenbuehler, Lacamoire, the designers, Chernow and Seller together. Each gains if the others pay.</p>
+   <p><b>Verifiability.</b> Agreeing in December 2014 to "fund $X if reviews are Good" fixes the commitment problem but needs a contractible trigger (a critics' aggregate, advance sales). Bargaining after the reviews needs no trigger, only the cash.</p>
+   <p>So the setup is renegotiation-proof up to a cash infusion of about ${M(g.minT)}, conditional on verifiable review status. If producers and creatives could credibly commit that cash, the efficient contract funds continuation after ${REV[g.s]} reviews and still walks away after Poor ones.</p>`;
+  t+=`<h3>Ex ante, December 2014</h3><p>Going direct is worth ${M(dGain)} more to producers and creatives than the investors' Public plan; investors need ${M(dNeed)} up front to give up the trial (Dec 2014 values). ${dGain>dNeed?`A deal exists with ${M(dGain-dNeed)} to share, but it requires an unconditional cash payment of ${M(dNeed)} before anyone knows how the show will do. That is a bigger ask than the conditional transfer, which is paid only ${gap.length?`with probability ${P(g.R.p)}`:"in some states"}.`:`No deal exists at these numbers: producers and creatives gain less than investors need.`} The Public, a party to neither bargain, loses ${M(S.partyPub.pub)} if the trial is skipped.</p>`;
+  $("rn-text").innerHTML=t;
+}
+
 function render(){
   const S=solve(state.th,state.r);
   $("theta-val").textContent="θ = "+state.th.toFixed(2);
@@ -458,7 +509,7 @@ function render(){
   let be=null;for(let i=0;i<=400;i++){const th=i/200,T=solve(th,state.r);if(T.opt>Math.max(T.direct,0)){be=th;break;}}
   v+=be===null?" Even fully revealing reviews would not justify the trial at this discount rate.":` The trial pays for itself once θ exceeds ${be.toFixed(2)}.`;
   $("verdict").innerHTML=v;
-  drawTree(S);drawWaterfall(S);drawWho(S);drawChart(state.r);drawPosts(S);
+  drawTree(S);drawWaterfall(S);drawWho(S);drawChart(state.r);drawPosts(S);drawInstr(S);
 }
 
 $("theta").addEventListener("input",e=>{state.th=+e.target.value;render();});
@@ -469,6 +520,9 @@ $("st-flow").onclick=()=>{state.style="flow";tog("st-flow","st-classic",true);re
 $("st-classic").onclick=()=>{state.style="classic";tog("st-flow","st-classic",false);render();};
 const setBig=b=>{state.big=b;document.documentElement.classList.toggle("big",b);tog("sz-big","sz-normal",b);render();try{localStorage.setItem("hamBig",b?"1":"0");}catch(e){}};
 $("sz-big").onclick=()=>setBig(true);$("sz-normal").onclick=()=>setBig(false);
+const toggleInstr=()=>{$("instr").hidden=!$("instr").hidden;render();if(!$("instr").hidden)$("instr").scrollIntoView({behavior:"smooth",block:"start"});};
+document.addEventListener("keydown",e=>{if((e.key==="i"||e.key==="I")&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){e.preventDefault();toggleInstr();}});
+if(location.hash==="#instructor")$("instr").hidden=false;
 let saved=false;try{saved=localStorage.getItem("hamBig")==="1";}catch(e){}
 if(saved)setBig(true);else render();
 })();
