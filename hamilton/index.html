@@ -116,9 +116,15 @@ svg .halo{paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linej
         <h2>Decision tree</h2>
         <p class="note" id="tree-note"></p>
       </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="seg" role="group" aria-label="Policy after the reviews">
+        <button id="pol-opt" aria-pressed="true">Abandon optimally</button>
+        <button id="pol-mech" aria-pressed="false">Proceed regardless</button>
+      </div>
       <div class="seg" role="group" aria-label="Tree style">
         <button id="st-flow" aria-pressed="true">Flow</button>
         <button id="st-classic" aria-pressed="false">Classic</button>
+      </div>
       </div>
     </div>
     <div class="tree-scroll"><svg id="tree" role="img" aria-label="Decision tree for Hamilton"></svg></div>
@@ -261,7 +267,7 @@ function solve(th,r){
 const M=x=>{const v=x/1000;const a=Math.abs(v);const s=a<0.05?"0.0":(a>=100?a.toFixed(0):a.toFixed(1));return (v<-0.05?"−":"")+"$"+s+"M";};
 const P=x=>(x*100).toFixed(x>0&&x<0.1?1:0)+"%";
 const $=id=>document.getElementById(id);
-let state={th:1,r:.07,style:"flow",big:false};
+let state={th:1,r:.07,style:"flow",big:false,policy:"opt"};
 const K=()=>state.big?1.3:1;
 
 // ---------- tree ----------
@@ -278,20 +284,22 @@ function layout(k){
 function drawTree(S){
   const k=K(), G=layout(k), svg=$("tree"), fs=n=>(n*k).toFixed(1);
   svg.setAttribute("viewBox",`0 0 ${G.W} ${G.H}`);
-  const choices=[0,S.direct,S.opt], best=choices.indexOf(Math.max(...choices));
+  const mech=state.policy==="mech";
+  if(mech) S=Object.assign({},S,{opt:S.mech,rev:S.rev.map(R=>Object.assign({},R,{go:true,bad:R.ev<0}))});
+  const choices=[0,S.direct,S.opt], best=mech?2:choices.indexOf(Math.max(...choices));
   let o=[];
   const hdr=(x,t,a)=>o.push(`<text x="${x}" y="${16*k}" font-size="${fs(11)}" letter-spacing="1.2" fill="var(--muted)" font-weight="600" text-anchor="${a||"start"}">${t}</text>`);
   hdr(G.X0,"DEC 2014","middle");hdr(G.X1,"REVIEWS","middle");hdr(G.X2,"JUNE 2015","middle");hdr(G.X3,"BROADWAY FATE","middle");hdr(G.XL+8,"INVESTORS' NPV");
   const leafTxt=(x,y,v,on)=>o.push(`<text x="${x+16}" y="${y+4.5*k}" font-size="${fs(13)}" class="num" font-weight="${on?600:400}" fill="${on?(v>0?"var(--accent)":v<0?"var(--f)":"var(--ink)"):"var(--muted)"}" opacity="${on?1:.6}">${M(v)}</text>`);
-  const rootVal=Math.max(...choices);
+  const rootVal=mech?S.mech:Math.max(...choices);
   if(state.style==="flow") flowTree(S,G,k,best,o,leafTxt); else classicTree(S,G,k,best,o,leafTxt);
-  o.push(`<text x="${G.X0-14}" y="${G.yRoot+4.5*k}" text-anchor="end" font-size="${fs(14)}" class="num" font-weight="700" fill="var(--accent)">${M(rootVal)}</text>`);
+  o.push(`<text x="${G.X0-14}" y="${G.yRoot+4.5*k}" text-anchor="end" font-size="${fs(14)}" class="num" font-weight="700" fill="${rootVal<0?"var(--f)":"var(--accent)"}">${M(rootVal)}</text>`);
   svg.innerHTML=o.join("");
 }
-function pill(o,x,y,txt,on,k){
+function pill(o,x,y,txt,on,k,bad){
   const w=(txt.length*7.6+12)*k, h=18*k;
-  o.push(`<g><rect x="${x-w/2}" y="${y-h/2}" width="${w}" height="${h}" rx="${h/2}" fill="${on?"var(--accent)":"var(--surface)"}" stroke="${on?"var(--accent)":"var(--rule)"}"/>`+
-    `<text x="${x}" y="${y+4.3*k}" text-anchor="middle" font-size="${(12.5*k).toFixed(1)}" class="num" font-weight="600" fill="${on?"var(--surface)":"var(--muted)"}">${txt}</text></g>`);
+  o.push(`<g><rect x="${x-w/2}" y="${y-h/2}" width="${w}" height="${h}" rx="${h/2}" fill="${bad?"var(--f)":on?"var(--accent)":"var(--surface)"}" stroke="${bad?"var(--f)":on?"var(--accent)":"var(--rule)"}"/>`+
+    `<text x="${x}" y="${y+4.3*k}" text-anchor="middle" font-size="${(12.5*k).toFixed(1)}" class="num" font-weight="600" fill="${on||bad?"var(--surface)":"var(--muted)"}">${txt}</text></g>`);
 }
 function flowTree(S,G,k,best,o,leafTxt){
   const Wm=32*k, fs=n=>(n*k).toFixed(1);
@@ -318,7 +326,7 @@ function flowTree(S,G,k,best,o,leafTxt){
   // public
   fan(G.X1,G.yPc,S.rev.map((R,s)=>({x:G.X2,y:G.rv[s].dec,reach:pubOn?R.p:0,fill:"var(--accent)",op:.3})));
   S.rev.forEach((R,s)=>{const g=G.rv[s];
-    fan(G.X2,g.dec,[{x:G.X3,y:g.goC,reach:pubOn&&R.go?R.p:0,fill:"var(--accent)",op:.3},{x:G.XL,y:g.close,reach:pubOn&&!R.go?R.p:0,fill:"var(--muted)",op:.3}]);
+    fan(G.X2,g.dec,[{x:G.X3,y:g.goC,reach:pubOn&&R.go?R.p:0,fill:R.bad?"var(--f)":"var(--accent)",op:R.bad?.35:.3},{x:G.XL,y:g.close,reach:pubOn&&!R.go?R.p:0,fill:"var(--muted)",op:.3}]);
     fan(G.X3,g.goC,[0,1,2].map(t=>({x:G.XL,y:g.go[t],reach:pubOn&&R.go?R.p*R.post[t]:0,fill:TCOL[t],op:.55})));
   });
   // labels
@@ -328,8 +336,8 @@ function flowTree(S,G,k,best,o,leafTxt){
   [0,1,2].forEach(t=>lab(G.XL-10,G.yD[t]+4*k,`${TYPES[t]} <tspan class="num">${P(PRIOR[t])}</tspan>`,null,dirOn?"var(--ink)":"var(--muted)"));
   S.rev.forEach((R,s)=>{const g=G.rv[s];
     lab(G.X2-18,g.dec+4*k,`${REV[s]} <tspan class="num">${P(R.p)}</tspan>`,null,pubOn?"var(--ink)":"var(--muted)",600);
-    lab(G.X3-18,g.goC+4*k,"Go",null,R.go?"var(--ink)":"var(--muted)");
-    lab(G.XL-10,g.close+4*k,R.go?"Close":"Close · walk away",null,R.go?"var(--muted)":"var(--ink)",R.go?400:600);
+    lab(G.X3-18,g.goC+4*k,R.bad?"Go regardless":"Go",null,R.bad?"var(--f)":R.go?"var(--ink)":"var(--muted)",R.bad?700:500);
+    lab(G.XL-10,g.close+4*k,state.policy==="mech"?"Close (not considered)":R.go?"Close":"Close · walk away",null,R.go?"var(--muted)":"var(--ink)",R.go?400:600);
     [0,1,2].forEach(t=>lab(G.XL-10,g.go[t]+4*k,`${TYPES[t]} <tspan class="num">${P(R.post[t])}</tspan>`,null,R.go?"var(--ink)":"var(--muted)"));
   });
   // nodes + leaves
@@ -342,19 +350,20 @@ function flowTree(S,G,k,best,o,leafTxt){
     o.push(`<circle cx="${G.X3}" cy="${g.goC}" r="${6*k}" fill="var(--surface)" stroke="${pubOn&&R.go?"var(--accent)":"var(--muted)"}" stroke-width="2"/>`);
     pill(o,G.X3,g.goC-20*k,M(R.ev),false,k);
     o.push(`<rect x="${G.X2-7*k}" y="${g.dec-7*k}" width="${14*k}" height="${14*k}" rx="3" fill="var(--surface)" stroke="${pubOn?"var(--accent)":"var(--muted)"}" stroke-width="2"/>`);
-    pill(o,G.X2,g.dec-22*k,M(Math.max(R.ev,0)),pubOn,k);
+    pill(o,G.X2,g.dec-22*k,M(R.go?R.ev:0),pubOn&&!R.bad,k,R.bad);
   });
   o.push(`<circle cx="${G.X1}" cy="${G.yDc}" r="${7*k}" fill="var(--surface)" stroke="${dirOn?"var(--direct)":"var(--muted)"}" stroke-width="2"/>`);
   pill(o,G.X1,G.yDc+22*k,M(S.direct),dirOn,k);
   o.push(`<circle cx="${G.X1}" cy="${G.yPc}" r="${7*k}" fill="var(--surface)" stroke="${pubOn?"var(--accent)":"var(--muted)"}" stroke-width="2"/>`);
   pill(o,G.X1,G.yPc+30*k,M(S.opt),pubOn,k);
   o.push(`<text x="${G.X1}" y="${G.yPc+50*k}" text-anchor="middle" font-size="${fs(11)}" fill="var(--muted)">after $1.9M trial</text>`);
+  if(state.policy==="mech") pill(o,G.X1,G.yPc+30*k,M(S.opt),false,k,S.opt<0);
   o.push(`<rect x="${G.X0-8*k}" y="${G.yRoot-8*k}" width="${16*k}" height="${16*k}" rx="3" fill="var(--accent)"/>`);
 }
 function classicTree(S,G,k,best,o,leafTxt){
   const fs=n=>(n*k).toFixed(1); const pubOn=best===2, dirOn=best===1;
-  const elbow=(x1,y1,x2,y2,on,pr,label)=>{const mid=x1+16;
-    o.push(`<path d="M${x1},${y1} H${mid} V${y2} H${x2}" fill="none" stroke="${on?"var(--accent)":pr?"var(--muted)":"var(--ink)"}" stroke-width="${on?3:1.4}" opacity="${on?1:pr?.35:.5}"/>`);
+  const elbow=(x1,y1,x2,y2,on,pr,label,col)=>{const mid=x1+16;
+    o.push(`<path d="M${x1},${y1} H${mid} V${y2} H${x2}" fill="none" stroke="${col&&on?col:on?"var(--accent)":pr?"var(--muted)":"var(--ink)"}" stroke-width="${on?3:1.4}" opacity="${on?1:pr?.35:.5}"/>`);
     if(label)o.push(`<text x="${mid+6}" y="${y2-6*k}" font-size="${fs(12.5)}" fill="var(--ink)">${label}</text>`);
     if(pr){const cx=(mid+x2)/2+30;o.push(`<path d="M${cx-4},${y2+5} l5,-10 M${cx+2},${y2+5} l5,-10" stroke="var(--muted)" stroke-width="1.6" fill="none"/>`);}};
   const val=(x,y,v,on,below)=>o.push(`<text x="${below?x:x-11*k}" y="${below?y+24*k:y-8*k}" text-anchor="${below?"middle":"end"}" font-size="${fs(12.5)}" class="num" font-weight="600" fill="${on?"var(--accent)":"var(--muted)"}">${M(v)}</text>`);
@@ -367,16 +376,16 @@ function classicTree(S,G,k,best,o,leafTxt){
   [0,1,2].forEach(t=>{elbow(G.X1+7,G.yDc,G.XL,G.yD[t],dirOn,false,`<tspan fill="${TCOL[t]}">●</tspan> ${TYPES[t]} <tspan class="num" fill="var(--muted)">${P(PRIOR[t])}</tspan>`);leaf(G.yD[t],S.VD[t],TCOL[t],dirOn);});
   S.rev.forEach((R,s)=>{const g=G.rv[s];
     elbow(G.X1+7,G.yPc,G.X2-7,g.dec,pubOn,false,`${REV[s]} <tspan class="num" fill="var(--muted)">${P(R.p)}</tspan>`);
-    elbow(G.X2+7,g.dec,G.X3-7,g.goC,pubOn&&R.go,!R.go,"Go");
-    elbow(G.X2+7,g.dec,G.XL,g.close,pubOn&&!R.go,R.go,"Close");
-    [0,1,2].forEach(t=>{elbow(G.X3+7,g.goC,G.XL,g.go[t],pubOn&&R.go,false,`<tspan fill="${TCOL[t]}">●</tspan> ${TYPES[t]} <tspan class="num" fill="var(--muted)">${P(R.post[t])}</tspan>`);leaf(g.go[t],S.VP[t],TCOL[t],pubOn&&R.go);});
+    elbow(G.X2+7,g.dec,G.X3-7,g.goC,pubOn&&R.go,!R.go,R.bad?`<tspan fill="var(--f)" font-weight="700">Go</tspan>`:"Go",R.bad?"var(--f)":null);
+    elbow(G.X2+7,g.dec,G.XL,g.close,pubOn&&!R.go,R.go,state.policy==="mech"?"Close (not considered)":"Close");
+    [0,1,2].forEach(t=>{elbow(G.X3+7,g.goC,G.XL,g.go[t],pubOn&&R.go,false,`<tspan fill="${TCOL[t]}">●</tspan> ${TYPES[t]} <tspan class="num" fill="var(--muted)">${P(R.post[t])}</tspan>`,R.bad?"var(--f)":null);leaf(g.go[t],S.VP[t],TCOL[t],pubOn&&R.go);});
     leaf(g.close,0,null,pubOn&&!R.go);
     ci(G.X3,g.goC,pubOn&&R.go);val(G.X3,g.goC,R.ev,false);
-    sq(G.X2,g.dec,pubOn);val(G.X2,g.dec,Math.max(R.ev,0),pubOn);
+    sq(G.X2,g.dec,pubOn);val(G.X2,g.dec,R.go?R.ev:0,pubOn&&!R.bad);
   });
   ci(G.X1,G.yDc,dirOn);val(G.X1,G.yDc,S.direct,dirOn,true);
   ci(G.X1,G.yPc,pubOn);
-  o.push(`<text x="${G.X1}" y="${G.yPc+24*k}" text-anchor="middle" font-size="${fs(12.5)}" class="num" font-weight="600" fill="${pubOn?"var(--accent)":"var(--muted)"}">${M(S.opt)}</text>`);
+  o.push(`<text x="${G.X1}" y="${G.yPc+24*k}" text-anchor="middle" font-size="${fs(12.5)}" class="num" font-weight="600" fill="${S.opt<0?"var(--f)":pubOn?"var(--accent)":"var(--muted)"}">${M(S.opt)}</text>`);
   sq(G.X0,G.yRoot,true);
 }
 
@@ -498,7 +507,9 @@ function render(){
   const S=solve(state.th,state.r);
   $("theta-val").textContent="θ = "+state.th.toFixed(2);
   $("theta-desc").textContent=state.th<0.02?"· reviews say nothing":state.th<0.98?"· weaker than the case":state.th<=1.02?"· the case's reviews":state.th<1.98?"· sharper than the case":"· reviews reveal the outcome";
-  $("tree-note").textContent= state.style==="flow"
+  if(state.policy==="mech"){const bad=S.rev.filter(R=>R.ev<0&&R.p>1e-6).map(R=>REV[S.rev.indexOf(R)]);
+    $("tree-note").innerHTML=`<b style="color:var(--f)">Proceed regardless.</b> Investors spend the $10.6M whatever the reviews say${bad.length?`, including after ${bad.join(" and ")} reviews (red), where going ahead has negative value to them`:""}. The Public path is worth ${M(S.mech)}, versus ${M(S.opt)} abandoning optimally: the option to abandon is worth ${M(S.opt-S.mech)}. ${S.mech<Math.max(0,S.direct)?`At this value investors would rather ${S.direct>0?"go direct":"pass"}; the tree follows The Public path anyway to show it.`:""}`;}
+  else $("tree-note").textContent= state.style==="flow"
     ? "Ribbon width is the probability of reaching each branch under the best plan. Pills show rolled-back value. Dashed lines are branches not taken."
     : "Squares are decisions, circles are chance. Values roll back from the leaves; slashes mark pruned branches.";
   $("legend").innerHTML= `<span><span class="sw" style="background:var(--bb)"></span>Blockbuster</span><span><span class="sw" style="background:var(--s)"></span>Success</span><span><span class="sw" style="background:var(--f)"></span>Flop</span><span>Leaves: investors' NPV in June 2015, including the Broadway investment</span>`;
@@ -516,6 +527,8 @@ $("theta").addEventListener("input",e=>{state.th=+e.target.value;render();});
 document.querySelectorAll(".snap button").forEach(b=>b.addEventListener("click",()=>{state.th=+b.dataset.t;$("theta").value=state.th;render();}));
 $("rate").addEventListener("input",e=>{const v=parseFloat(e.target.value);if(v>=1&&v<=20){state.r=v/100;render();}});
 const tog=(a,b,on)=>{$(a).setAttribute("aria-pressed",on);$(b).setAttribute("aria-pressed",!on);};
+$("pol-opt").onclick=()=>{state.policy="opt";tog("pol-opt","pol-mech",true);render();};
+$("pol-mech").onclick=()=>{state.policy="mech";tog("pol-opt","pol-mech",false);render();};
 $("st-flow").onclick=()=>{state.style="flow";tog("st-flow","st-classic",true);render();};
 $("st-classic").onclick=()=>{state.style="classic";tog("st-flow","st-classic",false);render();};
 const setBig=b=>{state.big=b;document.documentElement.classList.toggle("big",b);tog("sz-big","sz-normal",b);render();try{localStorage.setItem("hamBig",b?"1":"0");}catch(e){}};
