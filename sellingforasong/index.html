@@ -1,1 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Selling for a Song</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: two artist "channel strips" side by side, a gap readout between them, two charts below. */
+:root{
+  --bg:#f3f4f6; --panel:#ffffff; --ink:#16181d; --muted:#5d6370; --line:#dadde3; --track:#e6e8ec;
+  --wright:#1f6f8b; --wright-soft:#d6e8ef; --farrell:#c2410c; --farrell-soft:#f7e0d3;
+  --good:#15803d; --good-soft:#dcf2e3;
+  --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Public Sans",ui-sans-serif,system-ui,sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111318; --panel:#1a1d24; --ink:#eceef2; --muted:#9aa1ae; --line:#2e333d; --track:#2a2f38;
+  --wright:#5bb4d3; --wright-soft:#1c3640; --farrell:#f08a4b; --farrell-soft:#3f2618;
+  --good:#4ade80; --good-soft:#163222; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111318; --panel:#1a1d24; --ink:#eceef2; --muted:#9aa1ae; --line:#2e333d; --track:#2a2f38;
+  --wright:#5bb4d3; --wright-soft:#1c3640; --farrell:#f08a4b; --farrell-soft:#3f2618;
+  --good:#4ade80; --good-soft:#163222; color-scheme:dark}
 
+html{font-size:15px}
+html.big{font-size:22px}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:1rem;line-height:1.45}
+.wrap{max-width:78rem;margin:0 auto;padding-inline:16px;padding-block:1.4rem 2.5rem;display:flex;flex-direction:column;gap:1.2rem}
+html.big .wrap{max-width:none;padding-inline:28px}
+
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:.8rem 1.5rem}
+.eyebrow{font-size:.75rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-family:var(--f-display);font-weight:800;font-size:2.1rem;line-height:1.05;margin:.15rem 0 0;text-wrap:balance}
+.controls{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;background:var(--panel);padding:3px}
+.seg button{font:600 .8rem var(--f-body);border:0;background:transparent;color:var(--muted);padding:.35rem .8rem;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.chk{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:.4rem .8rem;cursor:pointer;user-select:none}
+.chk input{accent-color:var(--ink);width:1em;height:1em;margin:0}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+.board{display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:stretch}
+.strip{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1.1rem 1.2rem 1.2rem;display:flex;flex-direction:column;gap:.9rem;min-width:0}
+.strip.w{--c:var(--wright);--cs:var(--wright-soft)}
+.strip.f{--c:var(--farrell);--cs:var(--farrell-soft)}
+.who{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;flex-wrap:wrap}
+.who h2{font-family:var(--f-display);font-weight:700;font-size:1.5rem;margin:0;color:var(--c)}
+.who span{font-size:.82rem;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+.kpi .lab{font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.kpi .num{font-family:var(--f-num);font-weight:700;font-size:2.6rem;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.kpi .num.m{color:var(--c)}
+.kpi .sub{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+
+.slider{display:flex;flex-direction:column;gap:.3rem}
+.slider .row{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem}
+.slider label{font-weight:600;font-size:.88rem}
+.slider output{font-family:var(--f-num);font-weight:700;font-size:1rem;color:var(--c);font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2.2rem;background:transparent;margin:0;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:.45rem;border-radius:99px;background:linear-gradient(90deg,var(--track),var(--cs),var(--track))}
+input[type=range]::-moz-range-track{height:.45rem;border-radius:99px;background:var(--track)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:1.5rem;height:1.5rem;border-radius:50%;background:var(--c);border:3px solid var(--panel);box-shadow:0 0 0 1px var(--c);margin-top:-.53rem}
+input[type=range]::-moz-range-thumb{width:1.2rem;height:1.2rem;border-radius:50%;background:var(--c);border:3px solid var(--panel);box-shadow:0 0 0 1px var(--c)}
+.ticks{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);font-family:var(--f-num)}
+
+.mix .lab{font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;display:flex;justify-content:space-between;gap:.5rem}
+.bars{display:grid;grid-template-columns:repeat(9,1fr);gap:.3rem;align-items:end;height:5.5rem;margin-top:.35rem;border-bottom:1px solid var(--line)}
+.bars div{background:var(--c);border-radius:3px 3px 0 0;min-height:1px;transition:height .25s ease}
+.bars div.empty{background:var(--track)}
+.blabs{display:grid;grid-template-columns:repeat(9,1fr);gap:.3rem;font-size:.68rem;color:var(--muted);text-align:center;font-family:var(--f-num);margin-top:.2rem}
+
+.gap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;min-width:9.5rem;padding:.8rem;text-align:center;border-radius:14px;border:1px dashed var(--line)}
+.gap .lab{font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.gap .num{font-family:var(--f-num);font-weight:700;font-size:2.2rem;font-variant-numeric:tabular-nums}
+.gap .pill{font-size:.78rem;font-weight:700;padding:.25rem .65rem;border-radius:999px;background:var(--track);color:var(--muted)}
+.gap.match{border-style:solid;border-color:var(--good);background:var(--good-soft)}
+.gap.match .num,.gap.match .pill{color:var(--good)}
+.gap.match .pill{background:transparent;border:1px solid var(--good)}
+.gap .ratio{font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1rem 1.1rem;min-width:0}
+.card h3{font-family:var(--f-display);font-weight:700;font-size:1.1rem;margin:0 0 .15rem}
+.card p.cap{margin:0 0 .5rem;font-size:.82rem;color:var(--muted)}
+.chart{width:100%;height:16rem;display:block}
+.chart text{fill:var(--muted);font-family:var(--f-num);font-size:.72rem}
+.chart .gl{stroke:var(--line);stroke-width:1}
+.legend{display:flex;gap:1rem;font-size:.8rem;color:var(--muted);flex-wrap:wrap;margin-top:.3rem}
+.legend i{display:inline-block;width:.9rem;height:.25rem;border-radius:2px;vertical-align:middle;margin-right:.35rem}
+
+.notes{font-size:.8rem;color:var(--muted);display:grid;grid-template-columns:1fr 1fr;gap:.4rem 1.5rem}
+.notes b{color:var(--ink);font-weight:600}
+
+@media (max-width:820px){
+  .board{grid-template-columns:1fr}
+  .gap{flex-direction:row;flex-wrap:wrap;min-width:0}
+  .charts,.notes{grid-template-columns:1fr}
+  .kpi .num{font-size:2.1rem}
+}
+@media (prefers-reduced-motion:reduce){.bars div{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">FIN1 · Multiples valuation · HBS 224-114</div>
+      <h1>Selling for a Song: what's a catalog worth?</h1>
+    </div>
+    <div class="controls">
+      <label class="chk" title="Move both sliders together"><input type="checkbox" id="lock"> Lock sliders</label>
+      <label class="chk" title="Re-weight Farrell's 2021 royalties to Wright's age distribution"><input type="checkbox" id="samemix"> Give Farrell Wright's age mix</label>
+      <button class="chk" id="reset" type="button">Reset to case</button>
+      <div class="seg" role="group" aria-label="Display size">
+        <button type="button" id="szStd" aria-pressed="true">Standard</button>
+        <button type="button" id="szBig" aria-pressed="false">Classroom</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="board">
+    <div class="strip w" id="W"></div>
+    <div class="gap" id="gap">
+      <div class="lab">Multiple gap</div>
+      <div class="num" id="gapNum">6.7x</div>
+      <div class="pill" id="gapPill">Not comparable</div>
+      <div class="ratio" id="gapAge"></div>
+    </div>
+    <div class="strip f" id="F"></div>
+  </section>
+
+  <section class="charts">
+    <div class="card">
+      <h3>Multiple vs. catalog age</h3>
+      <p class="cap">Value ÷ 2021 royalties for each catalog as its songs are shifted older or younger. Dots mark the current sliders.</p>
+      <svg class="chart" id="cMult" role="img" aria-label="Multiple of 2021 royalties versus years shifted"></svg>
+      <div class="legend"><span><i style="background:var(--wright)"></i>Wright</span><span><i style="background:var(--farrell)"></i>Farrell</span></div>
+    </div>
+    <div class="card">
+      <h3>Projected royalties, 2021 = 100</h3>
+      <p class="cap">Young songs decay before reaching steady state, so the same dollar of 2021 royalties is worth less.</p>
+      <svg class="chart" id="cPath" role="img" aria-label="Projected royalties indexed to 2021"></svg>
+      <div class="legend"><span><i style="background:var(--wright)"></i>Wright</span><span><i style="background:var(--farrell)"></i>Farrell</span></div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div><b>Model.</b> Exhibit 4 royalties projected 2022–2030 with Exhibit 5 decay × overall growth; terminal value at 2.3% growth; 8.5% discount rate; cash flows at year end. Buyer amortizes the price over 5 years at a 20% tax rate, so value solves Price = PV(after-tax royalties) + PV(amortization tax shield).</div>
+    <div><b>Shifting age.</b> Each age bucket's 2021 royalties move to a song k years older (or younger) and pick up that age's decay path; buckets cap at 8+ and floor at New. 2021 royalties stay fixed, so only the multiple's age effect moves. <b>Case reference:</b> Wright sold for $46M (≈18x); Farrell's best bid was ≈$22M (10.5x).</div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const YEARS=[2022,2023,2024,2025,2026,2027,2028,2029,2030];
+  const G=[.06,.06,.06,.06,.051,.049,.045,.027,.023];            // growth in overall royalties
+  const D=[-0.140265,-.4,-.3,-.2,-.1,-.08,-.05,-.02];              // share decay moving from age a to a+1
+  const R=.085, TAX=.2, GT=.023;
+  const AGES=["New","1","2","3","4","5","6","7","8+"];
+  const EX4={
+    W:[33333.33,33333.33,33333.33,70000,70000,70000,166666.67,166666.67,1916666.67],
+    F:[333333.33,333333.33,333333.33,250000,250000,250000,83333.33,83333.33,183333.33]
+  };
+  const sum=a=>a.reduce((s,x)=>s+x,0);
+  const TOT={W:sum(EX4.W),F:sum(EX4.F)};
+  const A5=[1,2,3,4,5].reduce((s,i)=>s+1/Math.pow(1+R,i),0);
+  const d=a=>a<8?D[a]:0;
+
+  const state={W:0,F:0,lock:false,same:false};
+
+  function base(k){ // 2021 royalties by bucket
+    if(k==="F"&&state.same) return EX4.W.map(x=>x/TOT.W*TOT.F);
+    return EX4[k];
+  }
+  function shifted(b,s){ // royalties placed at shifted ages (index 0..8)
+    const out=new Array(9).fill(0);
+    b.forEach((x,a)=>{out[Math.min(8,Math.max(0,a+s))]+=x});
+    return out;
+  }
+  function path(b,s){ // total royalties 2022..2030
+    const tot=new Array(9).fill(0);
+    shifted(b,s).forEach((x,age)=>{let y=x;for(let i=0;i<9;i++){y*=(1+G[i])*(1+d(age+i));tot[i]+=y}});
+    return tot;
+  }
+  function value(b,s){
+    const p=path(b,s);
+    let U=0; p.forEach((x,i)=>U+=x*(1-TAX)/Math.pow(1+R,i+1));
+    U+=p[8]*(1-TAX)*(1+GT)/(R-GT)/Math.pow(1+R,9);
+    const P=U/(1-TAX/5*A5);
+    return {P, mult:P/sum(b), path:p};
+  }
+  function avgAge(b,s){const sh=shifted(b,s);return sh.reduce((t,x,a)=>t+x*a,0)/sum(sh)}
+
+  const NAMES={W:["Colin Wright","Mentor · 105 songs"],F:["Robert Farrell","“Reeves” · 90 songs"]};
+  function buildStrip(k){
+    const el=document.getElementById(k);
+    el.innerHTML=`
+      <div class="who"><h2>${NAMES[k][0]}</h2><span>${NAMES[k][1]}</span></div>
+      <div class="kpis">
+        <div class="kpi"><div class="lab">Catalog value</div><div class="num" id="${k}val"></div><div class="sub" id="${k}valsub"></div></div>
+        <div class="kpi"><div class="lab">Multiple (× 2021)</div><div class="num m" id="${k}mult"></div><div class="sub" id="${k}multsub"></div></div>
+      </div>
+      <div class="slider">
+        <div class="row"><label for="${k}s">Shift catalog age</label><output id="${k}out" for="${k}s"></output></div>
+        <input type="range" id="${k}s" min="-8" max="8" step="1" value="0">
+        <div class="ticks"><span>8 yrs younger</span><span>as in case</span><span>8 yrs older</span></div>
+      </div>
+      <div class="mix">
+        <div class="lab"><span>Royalties by age</span><span id="${k}avg"></span></div>
+        <div class="bars" id="${k}bars">${AGES.map(()=>"<div></div>").join("")}</div>
+        <div class="blabs">${AGES.map(a=>`<span>${a}</span>`).join("")}</div>
+      </div>`;
+    document.getElementById(k+"s").addEventListener("input",e=>{
+      const v=+e.target.value; state[k]=v;
+      if(state.lock){const o=k==="W"?"F":"W";state[o]=v;document.getElementById(o+"s").value=v}
+      render();
+    });
+  }
+  buildStrip("W"); buildStrip("F");
+
+  const fmtM=x=>"$"+(x/1e6).toFixed(1)+"M";
+  const fmtShift=s=>s===0?"as in case":(s>0?`+${s} yr${s>1?"s":""} older`:`${-s} yr${s<-1?"s":""} younger`);
+
+  function render(){
+    const res={};
+    ["W","F"].forEach(k=>{
+      const b=base(k), s=state[k], v=value(b,s); res[k]=v;
+      document.getElementById(k+"val").textContent=fmtM(v.P);
+      document.getElementById(k+"valsub").textContent=`on ${fmtM(sum(b)).replace("M","M")} of 2021 royalties`;
+      document.getElementById(k+"mult").textContent=v.mult.toFixed(2)+"x";
+      document.getElementById(k+"multsub").textContent=k==="W"?"Actual sale: $46M, ≈18x":"Best bid: ≈$22M, 10.5x";
+      document.getElementById(k+"out").textContent=fmtShift(s);
+      const sh=shifted(b,s), mx=Math.max(...sh);
+      const bars=document.getElementById(k+"bars").children;
+      sh.forEach((x,i)=>{bars[i].style.height=(x>0?Math.max(2,x/mx*100):0)+"%";bars[i].className=x>0?"":"empty";bars[i].title=`${AGES[i]}: $${Math.round(x).toLocaleString()}`});
+      document.getElementById(k+"avg").textContent=`avg ${avgAge(b,s).toFixed(1)} yrs`;
+    });
+    const gapv=Math.abs(res.W.mult-res.F.mult);
+    const g=document.getElementById("gap");
+    document.getElementById("gapNum").textContent=gapv.toFixed(2)+"x";
+    const match=gapv<0.005, close=gapv<0.5;
+    g.classList.toggle("match",match);
+    document.getElementById("gapPill").textContent=match?"Perfect comps":close?"Close comps":"Not comparable";
+    document.getElementById("gapAge").textContent=`Avg age ${avgAge(base("W"),state.W).toFixed(1)} vs ${avgAge(base("F"),state.F).toFixed(1)}`;
+    drawMult(); drawPath(res);
+  }
+
+  // ---------- charts ----------
+  const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const rem=()=>parseFloat(getComputedStyle(document.documentElement).fontSize);
+  function frame(svg){
+    const w=svg.clientWidth,h=svg.clientHeight,r=rem();
+    svg.setAttribute("viewBox",`0 0 ${w} ${h}`);
+    return {w,h,m:{l:3.2*r,r:1*r,t:.8*r,b:2.2*r}};
+  }
+  function axes(f,xs,xLab,ys,yLab,xFmt,yFmt){
+    let s="";
+    ys.forEach(v=>{const y=yLab(v);s+=`<line class="gl" x1="${f.m.l}" x2="${f.w-f.m.r}" y1="${y}" y2="${y}"/><text x="${f.m.l-6}" y="${y}" text-anchor="end" dominant-baseline="middle">${yFmt(v)}</text>`});
+    xs.forEach(v=>{s+=`<text x="${xLab(v)}" y="${f.h-f.m.b+rem()*1.2}" text-anchor="middle">${xFmt(v)}</text>`});
+    return s;
+  }
+  const line=(pts,c,wd)=>`<polyline fill="none" stroke="${c}" stroke-width="${wd}" stroke-linejoin="round" stroke-linecap="round" points="${pts.map(p=>p.join(",")).join(" ")}"/>`;
+
+  function drawMult(){
+    const svg=document.getElementById("cMult"), f=frame(svg);
+    const ks=[];for(let k=-8;k<=8;k++)ks.push(k);
+    const cw=ks.map(k=>value(base("W"),k).mult), cf=ks.map(k=>value(base("F"),k).mult);
+    const yMax=22,yMin=0;
+    const X=k=>f.m.l+(k+8)/16*(f.w-f.m.l-f.m.r), Y=v=>f.m.t+(1-(v-yMin)/(yMax-yMin))*(f.h-f.m.t-f.m.b);
+    let s=axes(f,[-8,-4,0,4,8],X,[0,5,10,15,20],Y,k=>k>0?"+"+k:k===0?"case":k,v=>v+"x");
+    s+=`<line x1="${X(0)}" x2="${X(0)}" y1="${f.m.t}" y2="${f.h-f.m.b}" stroke="${css("--line")}" stroke-dasharray="3 3"/>`;
+    s+=line(ks.map((k,i)=>[X(k),Y(cw[i])]),css("--wright"),2.5);
+    s+=line(ks.map((k,i)=>[X(k),Y(cf[i])]),css("--farrell"),2.5);
+    const r=rem();
+    [["W","--wright"],["F","--farrell"]].forEach(([k,c])=>{
+      const m=value(base(k),state[k]).mult;
+      s+=`<circle cx="${X(state[k])}" cy="${Y(m)}" r="${.45*r}" fill="${css(c)}" stroke="${css("--panel")}" stroke-width="2"/>`;
+    });
+    s+=`<text x="${f.w-f.m.r}" y="${f.h-.2*r}" text-anchor="end">years shifted →</text>`;
+    svg.innerHTML=s;
+  }
+  function drawPath(res){
+    const svg=document.getElementById("cPath"), f=frame(svg);
+    const idx=k=>[100,...res[k].path.map(x=>x/sum(base(k))*100)];
+    const pw=idx("W"),pf=idx("F");
+    const all=[...pw,...pf];
+    const yMax=Math.max(160,Math.ceil(Math.max(...all)/20)*20), yMin=Math.min(40,Math.floor(Math.min(...all)/20)*20);
+    const yrs=[2021,...YEARS];
+    const X=i=>f.m.l+i/9*(f.w-f.m.l-f.m.r), Y=v=>f.m.t+(1-(v-yMin)/(yMax-yMin))*(f.h-f.m.t-f.m.b);
+    const ticks=[];for(let v=yMin;v<=yMax;v+=20)ticks.push(v);
+    let s=axes(f,[0,3,6,9],X,ticks,Y,i=>yrs[i],v=>v);
+    s+=`<line x1="${f.m.l}" x2="${f.w-f.m.r}" y1="${Y(100)}" y2="${Y(100)}" stroke="${css("--muted")}" stroke-width="1" stroke-dasharray="4 3"/>`;
+    s+=line(pw.map((v,i)=>[X(i),Y(v)]),css("--wright"),2.5);
+    s+=line(pf.map((v,i)=>[X(i),Y(v)]),css("--farrell"),2.5);
+    const r=rem();
+    s+=`<circle cx="${X(9)}" cy="${Y(pw[9])}" r="${.35*r}" fill="${css("--wright")}"/><circle cx="${X(9)}" cy="${Y(pf[9])}" r="${.35*r}" fill="${css("--farrell")}"/>`;
+    svg.innerHTML=s;
+  }
+
+  // ---------- controls ----------
+  const lock=document.getElementById("lock"), same=document.getElementById("samemix");
+  lock.addEventListener("change",()=>{state.lock=lock.checked;if(state.lock){state.F=state.W;document.getElementById("Fs").value=state.W}render()});
+  same.addEventListener("change",()=>{state.same=same.checked;render()});
+  document.getElementById("reset").addEventListener("click",()=>{
+    state.W=state.F=0;state.lock=state.same=false;lock.checked=same.checked=false;
+    document.getElementById("Ws").value=0;document.getElementById("Fs").value=0;render();
+  });
+  const bStd=document.getElementById("szStd"),bBig=document.getElementById("szBig");
+  function setSize(big){
+    document.documentElement.classList.toggle("big",big);
+    bStd.setAttribute("aria-pressed",!big);bBig.setAttribute("aria-pressed",big);
+    try{localStorage.setItem("sfas-size",big?"big":"std")}catch(e){}
+    requestAnimationFrame(render);
+  }
+  bStd.addEventListener("click",()=>setSize(false));
+  bBig.addEventListener("click",()=>setSize(true));
+  try{if(localStorage.getItem("sfas-size")==="big")document.documentElement.classList.add("big"),bStd.setAttribute("aria-pressed",false),bBig.setAttribute("aria-pressed",true)}catch(e){}
+
+  window.addEventListener("resize",()=>render());
+  if(window.matchMedia)matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",render);
+  new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+  render();
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(render);
+})();
+</script>
+</body>
+</html>
