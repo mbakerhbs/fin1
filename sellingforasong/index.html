@@ -67,6 +67,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:1.5rem;hei
 input[type=range]::-moz-range-thumb{width:1.2rem;height:1.2rem;border-radius:50%;background:var(--c);border:3px solid var(--panel);box-shadow:0 0 0 1px var(--c)}
 .ticks{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);font-family:var(--f-num)}
 
+.rates{display:grid;grid-template-columns:1fr 1fr;gap:.4rem 1rem;padding-top:.6rem;border-top:1px solid var(--line)}
+.rates .slider output{font-size:.9rem}
+.rates input[type=range]{height:1.9rem}
+.gap table{border-collapse:collapse;font-size:.76rem;font-variant-numeric:tabular-nums;margin-top:.2rem}
+.gap th,.gap td{padding:.12rem .35rem;text-align:right;font-weight:500}
+.gap tbody th{text-align:left;color:var(--muted)}
+.gap td{font-family:var(--f-num)}
+.gap .cw{color:var(--wright);font-weight:700}.gap .cf{color:var(--farrell);font-weight:700}
+.gap tr.diff td{color:var(--ink);font-weight:700;background:var(--track)}
+.gap tr.same td{color:var(--muted)}
 .mix .lab{font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;display:flex;justify-content:space-between;gap:.5rem}
 .bars{display:grid;grid-template-columns:repeat(9,1fr);gap:.3rem;align-items:end;height:5.5rem;margin-top:.35rem;border-bottom:1px solid var(--line)}
 .bars div{background:var(--c);border-radius:3px 3px 0 0;min-height:1px;transition:height .25s ease}
@@ -80,7 +90,7 @@ input[type=range]::-moz-range-thumb{width:1.2rem;height:1.2rem;border-radius:50%
 .gap.match{border-style:solid;border-color:var(--good);background:var(--good-soft)}
 .gap.match .num,.gap.match .pill{color:var(--good)}
 .gap.match .pill{background:transparent;border:1px solid var(--good)}
-.gap .ratio{font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.gap .ratio{color:var(--muted)}
 
 .charts{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1rem 1.1rem;min-width:0}
@@ -136,7 +146,7 @@ input[type=range]::-moz-range-thumb{width:1.2rem;height:1.2rem;border-radius:50%
   <section class="charts">
     <div class="card">
       <h3>Multiple vs. catalog age</h3>
-      <p class="cap">Value ÷ 2021 royalties for each catalog as its songs are shifted older or younger. Dots mark the current sliders.</p>
+      <p class="cap">Value ÷ 2021 royalties as each catalog is shifted older or younger, at that artist's own discount and tax rates. Dots mark the current sliders.</p>
       <svg class="chart" id="cMult" role="img" aria-label="Multiple of 2021 royalties versus years shifted"></svg>
       <div class="legend"><span><i style="background:var(--wright)"></i>Wright</span><span><i style="background:var(--farrell)"></i>Farrell</span></div>
     </div>
@@ -149,7 +159,7 @@ input[type=range]::-moz-range-thumb{width:1.2rem;height:1.2rem;border-radius:50%
   </section>
 
   <section class="notes">
-    <div><b>Model.</b> Exhibit 4 royalties projected 2022–2030 with Exhibit 5 decay × overall growth; terminal value at 2.3% growth; 8.5% discount rate; cash flows at year end. Buyer amortizes the price over 5 years at a 20% tax rate, so value solves Price = PV(after-tax royalties) + PV(amortization tax shield).</div>
+    <div><b>Model.</b> Exhibit 4 royalties projected 2022–2030 with Exhibit 5 decay × overall growth; terminal value at 2.3% growth; discount rate (case 8.5%) and tax rate (case 20%) set per artist; cash flows at year end. Buyer amortizes the price over 5 years, so value solves Price = PV(after-tax royalties) + PV(amortization tax shield).</div>
     <div><b>Shifting age.</b> Each age bucket's 2021 royalties move to a song k years older (or younger) and pick up that age's decay path; buckets cap at 8+ and floor at New. 2021 royalties stay fixed, so only the multiple's age effect moves. <b>Case reference:</b> Wright sold for $46M (≈18x); Farrell's best bid was ≈$22M (10.5x).</div>
   </section>
 </div>
@@ -159,7 +169,7 @@ input[type=range]::-moz-range-thumb{width:1.2rem;height:1.2rem;border-radius:50%
   const YEARS=[2022,2023,2024,2025,2026,2027,2028,2029,2030];
   const G=[.06,.06,.06,.06,.051,.049,.045,.027,.023];            // growth in overall royalties
   const D=[-0.140265,-.4,-.3,-.2,-.1,-.08,-.05,-.02];              // share decay moving from age a to a+1
-  const R=.085, TAX=.2, GT=.023;
+  const R0=.085, TAX0=.2, GT=.023;
   const AGES=["New","1","2","3","4","5","6","7","8+"];
   const EX4={
     W:[33333.33,33333.33,33333.33,70000,70000,70000,166666.67,166666.67,1916666.67],
@@ -167,10 +177,10 @@ input[type=range]::-moz-range-thumb{width:1.2rem;height:1.2rem;border-radius:50%
   };
   const sum=a=>a.reduce((s,x)=>s+x,0);
   const TOT={W:sum(EX4.W),F:sum(EX4.F)};
-  const A5=[1,2,3,4,5].reduce((s,i)=>s+1/Math.pow(1+R,i),0);
   const d=a=>a<8?D[a]:0;
 
-  const state={W:0,F:0,lock:false,same:false};
+  const fresh=()=>({s:0,r:R0,t:TAX0});
+  const state={W:fresh(),F:fresh(),lock:false,same:false};
 
   function base(k){ // 2021 royalties by bucket
     if(k==="F"&&state.same) return EX4.W.map(x=>x/TOT.W*TOT.F);
@@ -186,10 +196,11 @@ input[type=range]::-moz-range-thumb{width:1.2rem;height:1.2rem;border-radius:50%
     shifted(b,s).forEach((x,age)=>{let y=x;for(let i=0;i<9;i++){y*=(1+G[i])*(1+d(age+i));tot[i]+=y}});
     return tot;
   }
-  function value(b,s){
+  function value(b,s,R,TAX){
     const p=path(b,s);
     let U=0; p.forEach((x,i)=>U+=x*(1-TAX)/Math.pow(1+R,i+1));
     U+=p[8]*(1-TAX)*(1+GT)/(R-GT)/Math.pow(1+R,9);
+    const A5=[1,2,3,4,5].reduce((a,i)=>a+1/Math.pow(1+R,i),0);
     const P=U/(1-TAX/5*A5);
     return {P, mult:P/sum(b), path:p};
   }
@@ -213,11 +224,23 @@ input[type=range]::-moz-range-thumb{width:1.2rem;height:1.2rem;border-radius:50%
         <div class="lab"><span>Royalties by age</span><span id="${k}avg"></span></div>
         <div class="bars" id="${k}bars">${AGES.map(()=>"<div></div>").join("")}</div>
         <div class="blabs">${AGES.map(a=>`<span>${a}</span>`).join("")}</div>
+      </div>
+      <div class="rates">
+        <div class="slider">
+          <div class="row"><label for="${k}r">Discount</label><output id="${k}rout" for="${k}r"></output></div>
+          <input type="range" id="${k}r" min="4" max="14" step="0.5" value="8.5">
+        </div>
+        <div class="slider">
+          <div class="row"><label for="${k}t">Tax</label><output id="${k}tout" for="${k}t"></output></div>
+          <input type="range" id="${k}t" min="0" max="40" step="1" value="20">
+        </div>
       </div>`;
-    document.getElementById(k+"s").addEventListener("input",e=>{
-      const v=+e.target.value; state[k]=v;
-      if(state.lock){const o=k==="W"?"F":"W";state[o]=v;document.getElementById(o+"s").value=v}
-      render();
+    [["s",1],["r",100],["t",100]].forEach(([f,div])=>{
+      document.getElementById(k+f).addEventListener("input",e=>{
+        const v=+e.target.value/div; state[k][f]=v;
+        if(state.lock){const o=k==="W"?"F":"W";state[o][f]=v;document.getElementById(o+f).value=e.target.value}
+        render();
+      });
     });
   }
   buildStrip("W"); buildStrip("F");
@@ -225,10 +248,21 @@ input[type=range]::-moz-range-thumb{width:1.2rem;height:1.2rem;border-radius:50%
   const fmtM=x=>"$"+(x/1e6).toFixed(1)+"M";
   const fmtShift=s=>s===0?"as in case":(s>0?`+${s} yr${s>1?"s":""} older`:`${-s} yr${s<-1?"s":""} younger`);
 
+  function syncInputs(){
+    ["W","F"].forEach(k=>{
+      document.getElementById(k+"s").value=state[k].s;
+      document.getElementById(k+"r").value=+(state[k].r*100).toFixed(1);
+      document.getElementById(k+"t").value=Math.round(state[k].t*100);
+    });
+  }
+  const pct=x=>(Math.round(x*1000)/10)+"%";
+  const pct1=x=>(x>=0?"+":"−")+Math.abs(x*100).toFixed(1)+"%";
   function render(){
     const res={};
     ["W","F"].forEach(k=>{
-      const b=base(k), s=state[k], v=value(b,s); res[k]=v;
+      const b=base(k), P=state[k], s=P.s, v=value(b,s,P.r,P.t); res[k]=v;
+      document.getElementById(k+"rout").textContent=pct(P.r);
+      document.getElementById(k+"tout").textContent=pct(P.t);
       document.getElementById(k+"val").textContent=fmtM(v.P);
       document.getElementById(k+"valsub").textContent=`on ${fmtM(sum(b)).replace("M","M")} of 2021 royalties`;
       document.getElementById(k+"mult").textContent=v.mult.toFixed(2)+"x";
@@ -245,7 +279,10 @@ input[type=range]::-moz-range-thumb{width:1.2rem;height:1.2rem;border-radius:50%
     const match=gapv<0.005, close=gapv<0.5;
     g.classList.toggle("match",match);
     document.getElementById("gapPill").textContent=match?"Perfect comps":close?"Close comps":"Not comparable";
-    document.getElementById("gapAge").textContent=`Avg age ${avgAge(base("W"),state.W).toFixed(1)} vs ${avgAge(base("F"),state.F).toFixed(1)}`;
+    const aw=avgAge(base("W"),state.W.s), af=avgAge(base("F"),state.F.s);
+    const g5=k=>{const pth=res[k].path;return pct1(Math.pow(pth[4]/sum(base(k)),1/5)-1)};
+    const rows=[["Avg age",aw.toFixed(1),af.toFixed(1)],["5-yr growth",g5("W"),g5("F")],["Discount",pct(state.W.r),pct(state.F.r)],["Tax",pct(state.W.t),pct(state.F.t)]];
+    document.getElementById("gapAge").innerHTML=`<table><thead><tr><th></th><th class="cw">W</th><th class="cf">F</th></tr></thead><tbody>${rows.map(([l,a,b])=>`<tr class="${a===b?"same":"diff"}"><th>${l}</th><td>${a}</td><td>${b}</td></tr>`).join("")}</tbody></table>`;
     drawMult(); drawPath(res);
   }
 
@@ -268,17 +305,19 @@ input[type=range]::-moz-range-thumb{width:1.2rem;height:1.2rem;border-radius:50%
   function drawMult(){
     const svg=document.getElementById("cMult"), f=frame(svg);
     const ks=[];for(let k=-8;k<=8;k++)ks.push(k);
-    const cw=ks.map(k=>value(base("W"),k).mult), cf=ks.map(k=>value(base("F"),k).mult);
-    const yMax=22,yMin=0;
+    const cw=ks.map(k=>value(base("W"),k,state.W.r,state.W.t).mult), cf=ks.map(k=>value(base("F"),k,state.F.r,state.F.t).mult);
+    const top=Math.max(...cw,...cf);
+    const yMax=Math.max(20,Math.ceil(top/5)*5+(top%5>3.5?5:0)),yMin=0;
+    const yt=[];for(let v=0;v<=yMax;v+=yMax>30?10:5)yt.push(v);
     const X=k=>f.m.l+(k+8)/16*(f.w-f.m.l-f.m.r), Y=v=>f.m.t+(1-(v-yMin)/(yMax-yMin))*(f.h-f.m.t-f.m.b);
-    let s=axes(f,[-8,-4,0,4,8],X,[0,5,10,15,20],Y,k=>k>0?"+"+k:k===0?"case":k,v=>v+"x");
+    let s=axes(f,[-8,-4,0,4,8],X,yt,Y,k=>k>0?"+"+k:k===0?"case":k,v=>v+"x");
     s+=`<line x1="${X(0)}" x2="${X(0)}" y1="${f.m.t}" y2="${f.h-f.m.b}" stroke="${css("--line")}" stroke-dasharray="3 3"/>`;
     s+=line(ks.map((k,i)=>[X(k),Y(cw[i])]),css("--wright"),2.5);
     s+=line(ks.map((k,i)=>[X(k),Y(cf[i])]),css("--farrell"),2.5);
     const r=rem();
     [["W","--wright"],["F","--farrell"]].forEach(([k,c])=>{
-      const m=value(base(k),state[k]).mult;
-      s+=`<circle cx="${X(state[k])}" cy="${Y(m)}" r="${.45*r}" fill="${css(c)}" stroke="${css("--panel")}" stroke-width="2"/>`;
+      const m=value(base(k),state[k].s,state[k].r,state[k].t).mult;
+      s+=`<circle cx="${X(state[k].s)}" cy="${Y(m)}" r="${.45*r}" fill="${css(c)}" stroke="${css("--panel")}" stroke-width="2"/>`;
     });
     s+=`<text x="${f.w-f.m.r}" y="${f.h-.2*r}" text-anchor="end">years shifted →</text>`;
     svg.innerHTML=s;
@@ -303,11 +342,11 @@ input[type=range]::-moz-range-thumb{width:1.2rem;height:1.2rem;border-radius:50%
 
   // ---------- controls ----------
   const lock=document.getElementById("lock"), same=document.getElementById("samemix");
-  lock.addEventListener("change",()=>{state.lock=lock.checked;if(state.lock){state.F=state.W;document.getElementById("Fs").value=state.W}render()});
+  lock.addEventListener("change",()=>{state.lock=lock.checked;if(state.lock){state.F={...state.W};syncInputs()}render()});
   same.addEventListener("change",()=>{state.same=same.checked;render()});
   document.getElementById("reset").addEventListener("click",()=>{
-    state.W=state.F=0;state.lock=state.same=false;lock.checked=same.checked=false;
-    document.getElementById("Ws").value=0;document.getElementById("Fs").value=0;render();
+    state.W=fresh();state.F=fresh();state.lock=state.same=false;lock.checked=same.checked=false;
+    syncInputs();render();
   });
   const bStd=document.getElementById("szStd"),bBig=document.getElementById("szBig");
   function setSize(big){
